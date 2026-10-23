@@ -1,0 +1,22 @@
+{
+  "_note": "Quick-add estimates for common dining-hall items, rounded from USDA FoodData Central values for typical portions. Prefer the real numbers from URI NetNutrition when you have them. Edit freely.",
+  "items": [
+    { "name": "Grilled chicken breast (palm, ~120 g cooked)", "kcal": 200, "protein_g": 37, "carbs_g": 0, "fat_g": 4 },
+    { "name": "Salmon fillet (~120 g cooked)", "kcal": 250, "protein_g": 27, "carbs_g": 0, "fat_g": 15 },
+    { "name": "Lean ground beef (~100 g cooked)", "kcal": 220, "protein_g": 26, "carbs_g": 0, "fat_g": 12 },
+    { "name": "Eggs, 2 large", "kcal": 145, "protein_g": 13, "carbs_g": 1, "fat_g": 10 },
+    { "name": "Greek yogurt, plain nonfat (170 g)", "kcal": 100, "protein_g": 17, "carbs_g": 6, "fat_g": 1 },
+    { "name": "Milk 2%, 1 cup", "kcal": 122, "protein_g": 8, "carbs_g": 12, "fat_g": 5 },
+    { "name": "Whey shake, 1 scoop in water", "kcal": 120, "protein_g": 24, "carbs_g": 3, "fat_g": 1.5 },
+    { "name": "White rice, 1 cup cooked", "kcal": 205, "protein_g": 4, "carbs_g": 45, "fat_g": 0.5 },
+    { "name": "Pasta, 1 cup cooked", "kcal": 220, "protein_g": 8, "carbs_g": 43, "fat_g": 1.5 },
+    { "name": "Oatmeal, 1 cup cooked", "kcal": 165, "protein_g": 6, "carbs_g": 28, "fat_g": 3.5 },
+    { "name": "Whole wheat bread, 1 slice", "kcal": 80, "protein_g": 4, "carbs_g": 14, "fat_g": 1 },
+    { "name": "Black beans, 1/2 cup", "kcal": 115, "protein_g": 8, "carbs_g": 20, "fat_g": 0.5 },
+    { "name": "Banana, medium", "kcal": 105, "protein_g": 1, "carbs_g": 27, "fat_g": 0.4 },
+    { "name": "Peanut butter, 2 tbsp", "kcal": 190, "protein_g": 7, "carbs_g": 7, "fat_g": 16 },
+    { "name": "Cheese pizza, 1 slice", "kcal": 285, "protein_g": 12, "carbs_g": 36, "fat_g": 10 },
+    { "name": "Salad bar veggies, big bowl (no dressing)", "kcal": 60, "protein_g": 3, "carbs_g": 12, "fat_g": 0.5 },
+    { "name": "Olive oil dressing, 2 tbsp", "kcal": 140, "protein_g": 0, "carbs_g": 2, "fat_g": 15 }
+  ]
+}

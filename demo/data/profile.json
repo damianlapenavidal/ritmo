@@ -1,0 +1,55 @@
+{
+  "name": "Demo athlete",
+  "sex": "male",
+  "birth_year": 2004,
+  "height_cm": 178,
+  "start_weight_kg": 76,
+  "units": {
+    "body": "kg",
+    "load": "lb"
+  },
+  "background": "Played soccer 3x/week until about 3 years ago, then mostly inactive. Not carrying much excess fat, but athletic performance has dropped.",
+  "goals": [
+    "Phase 1: rebuild athletic base (aerobic fitness, speed, jumping, tissue tolerance) without getting hurt",
+    "Phase 2: get leaner and build muscle so I look and feel strong"
+  ],
+  "phase": {
+    "current": "phase-1",
+    "start_date": "2026-09-19"
+  },
+  "schedule": {
+    "gym_days_per_week": 3,
+    "conditioning_days_per_week": 2,
+    "session_minutes": 60,
+    "preferred_days": [
+      "Mon",
+      "Tue",
+      "Thu",
+      "Fri",
+      "Sat"
+    ]
+  },
+  "equipment": [
+    "University gym: barbells, racks, dumbbells, machines, cables",
+    "Track or field for running"
+  ],
+  "food": {
+    "setting": "University dining hall (URI)",
+    "nutrition_lookup": "URI NetNutrition",
+    "preferences": [],
+    "avoid": []
+  },
+  "injuries_or_limits": [],
+  "nutrition_settings": {
+    "activity_factor": 1.55,
+    "protein_g_per_kg": {
+      "phase-1": 1.8,
+      "phase-2": 2.0
+    },
+    "calorie_adjust_pct": {
+      "phase-1": 0,
+      "phase-2": -10
+    },
+    "fat_pct_of_kcal": 0.27
+  }
+}
