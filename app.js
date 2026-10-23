@@ -1,4 +1,4 @@
-/* Forma - personal training + nutrition app.
+/* Ritmo - personal training + nutrition app.
    Data lives in a private GitHub repo; this page reads and writes it through the GitHub API
    with a fine-grained token that is stored only in this browser. Demo mode uses ./demo/. */
 (function () {
@@ -36,13 +36,13 @@
 
   // ---------- state ----------
   const S = {
-    cfg: Object.assign({ owner: "", repo: "fitness-coach", branch: "main", token: "", demo: true }, store.get("forma.cfg", {})),
+    cfg: Object.assign({ owner: "", repo: "fitness-coach", branch: "main", token: "", demo: true }, store.get("ritmo.cfg", {})),
     data: null,
     view: "today",
     logTab: "workout",
     draft: null,
     meal: null,
-    queue: store.get("forma.queue", []),
+    queue: store.get("ritmo.queue", []),
   };
   const live = () => !S.cfg.demo && S.cfg.token && S.cfg.owner && S.cfg.repo;
 
@@ -99,7 +99,7 @@
       return true;
     } catch (e) {
       S.queue.push({ kind, obj });
-      store.set("forma.queue", S.queue);
+      store.set("ritmo.queue", S.queue);
       toast("Offline or error: saved on this device, will retry");
       return true;
     }
@@ -111,7 +111,7 @@
       try {
         await appendLine(LOGS[item.kind], item.obj, `log: ${item.kind} ${item.obj.date} (synced)`);
         S.queue.shift();
-        store.set("forma.queue", S.queue);
+        store.set("ritmo.queue", S.queue);
       } catch { break; }
     }
     if (!S.queue.length) toast("Pending entries synced");
@@ -337,9 +337,9 @@
     const lifts = liftSeries(), names = Object.keys(lifts);
     const pick = $("#lift-pick");
     pick.innerHTML = names.length ? names.map((n) => `<option>${esc(n)}</option>`).join("") : "<option>No key lifts yet</option>";
-    const sel = store.get("forma.lift", names[0]);
+    const sel = store.get("ritmo.lift", names[0]);
     if (names.includes(sel)) pick.value = sel;
-    const drawLift = () => { store.set("forma.lift", pick.value); Charts.line($("#ch-lift"), { label: `${pick.value} estimated 1RM`, series: [{ name: "e1RM", color: "var(--series-2)", points: lifts[pick.value] || [], dots: true, dotOpacity: 1 }], yFmt: (v) => `${Math.round(v)} ${loadUnit()}` }); };
+    const drawLift = () => { store.set("ritmo.lift", pick.value); Charts.line($("#ch-lift"), { label: `${pick.value} estimated 1RM`, series: [{ name: "e1RM", color: "var(--series-2)", points: lifts[pick.value] || [], dots: true, dotOpacity: 1 }], yFmt: (v) => `${Math.round(v)} ${loadUnit()}` }); };
     pick.onchange = drawLift; drawLift();
 
     const wks = weeks(8);
@@ -482,7 +482,7 @@
       const grp = t.parentElement; grp.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === t));
       t.closest("form").querySelector(`input[name="${t.dataset.name}"]`).value = t.dataset.v;
     }
-    if (a === "demo") { S.cfg.demo = !S.cfg.demo; store.set("forma.cfg", S.cfg); await boot(); go("today"); }
+    if (a === "demo") { S.cfg.demo = !S.cfg.demo; store.set("ritmo.cfg", S.cfg); await boot(); go("today"); }
     if (a === "sync") flushQueue();
   });
 
@@ -503,7 +503,7 @@
       if (f.id === "cfg-form") {
         const fd = Object.fromEntries(new FormData(f));
         Object.assign(S.cfg, { owner: fd.owner.trim(), repo: fd.repo.trim(), branch: fd.branch.trim() || "main", token: fd.token.trim(), demo: false });
-        store.set("forma.cfg", S.cfg);
+        store.set("ritmo.cfg", S.cfg);
         await boot();
         if (S.data) { toast("Connected"); flushQueue(); go("today"); }
         return;
@@ -553,10 +553,10 @@
 
   // theme
   const applyTheme = (t) => { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; };
-  applyTheme(store.get("forma.theme", null));
+  applyTheme(store.get("ritmo.theme", null));
   $("#theme-btn").addEventListener("click", () => {
     const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const next = cur === "dark" ? "light" : "dark"; applyTheme(next); store.set("forma.theme", next); render();
+    const next = cur === "dark" ? "light" : "dark"; applyTheme(next); store.set("ritmo.theme", next); render();
   });
   $("#settings-btn").addEventListener("click", () => go("settings"));
   window.addEventListener("online", flushQueue);
