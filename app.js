@@ -513,7 +513,7 @@
       // Older estimates packed details into the name: "French toast (pan-fried in butter)".
       const shortName = (s) => String(s || "").replace(/\s*\(.*$/, "") || s;
       const parts = Array.isArray(r.breakdown) && r.breakdown.length
-        ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span>${esc(shortName(b.name))}${b.portion ? ` <span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted">${Math.round(b.kcal || 0)}</span></li>`).join("")}</ul>`
+        ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span class="mi-name"><span>${esc(shortName(b.name))}</span>${b.portion ? `<span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted">${Math.round(b.kcal || 0)}</span></li>`).join("")}</ul>`
         : r.items ? `<ul class="meal-items">${String(r.items).split(/,(?![^()]*\))/).map((s) => s.trim()).filter(Boolean).map((s) => `<li><span>${esc(s[0].toUpperCase() + s.slice(1))}</span></li>`).join("")}</ul>` : "";
       return `<li>
         <span><b class="cap">${esc(r.meal)}</b>${ai ? `<br><span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
