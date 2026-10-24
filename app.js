@@ -218,18 +218,18 @@
     const m = S.meal, ph = S.photo;
     const id = `${m.date}-${Date.now().toString(36)}`;
     const thumb = await (async () => { try { const r = await fetch(ph.dataUrl); return await resizeImage(await r.blob(), 160, 0.7); } catch { return null; } })();
-    const entry = { id, date: m.date, meal: m.meal, note: (m.note || "").trim(), location: m.location || undefined, thumb, at: Date.now() };
+    const entry = { id, date: m.date, meal: m.meal, note: (m.note || "").trim(), thumb, at: Date.now() };
     if (!live()) {
       S.pending.push(entry); savePending();
       setTimeout(() => {
-        S.data.nutrition.push({ date: m.date, meal: m.meal, items: "grilled chicken (1 breast), rice (1 cup), salad (1 bowl)", kcal: 520, protein_g: 48, carbs_g: 55, fat_g: 11, source: "photo-ai", photo_id: id, confidence: "medium", ai_comment: "Demo estimate: connect your repo for real ones.", ...(entry.location ? { location: entry.location } : {}) });
+        S.data.nutrition.push({ date: m.date, meal: m.meal, items: "grilled chicken (1 breast), rice (1 cup), salad (1 bowl)", kcal: 520, protein_g: 48, carbs_g: 55, fat_g: 11, source: "photo-ai", photo_id: id, confidence: "medium", ai_comment: "Demo estimate: connect your repo for real ones." });
         const done = resolvePending();
         if (done.length) toast(`Demo: meal estimated, ${done[0].kcal} kcal`);
         if (!["log", "settings"].includes(S.view)) render();
       }, 2500);
       return;
     }
-    const payload = { id, date: m.date, meal: m.meal, note: entry.note, ...(entry.location ? { location: entry.location } : {}), media_type: "image/jpeg", image_b64: ph.dataUrl.split(",")[1], uploaded_at: new Date().toISOString() };
+    const payload = { id, date: m.date, meal: m.meal, note: entry.note, media_type: "image/jpeg", image_b64: ph.dataUrl.split(",")[1], uploaded_at: new Date().toISOString() };
     await putFile(`inbox/meals/${id}.json`, JSON.stringify(payload), null, `photo: ${m.meal} ${m.date}`);
     S.pending.push(entry); savePending();
     schedulePoll();
@@ -399,17 +399,10 @@
       <div class="btn-row"><button class="btn primary" type="submit">Save workout</button><button type="button" class="btn ghost" data-act="reset-draft">Clear</button></div>`;
   }
 
-  // Dining halls from profile.json (food.dining_halls). The estimator adds that hall's NetNutrition menu to the prompt.
-  const halls = () => S.data?.profile?.food?.dining_halls || [];
-  const mealLocation = () => { const v = store.get("ritmo.location", halls()[0] || ""); return v === "" || halls().includes(v) ? v : halls()[0] || ""; };
-
   function photoSection(m) {
     const ph = S.photo;
-    m.location ??= mealLocation();
-    const where = halls().length ? `<div><div class="eyebrow" style="margin-bottom:6px">Where?</div><div class="seg" role="radiogroup" aria-label="Where are you eating?">${[...halls(), ""].map((h) => `<button type="button" data-act="pick-loc" data-v="${esc(h)}" aria-pressed="${m.location === h}">${esc(h || "Elsewhere")}</button>`).join("")}</div></div>` : "";
     return `
       <div class="photo-box">
-        ${where}
         ${ph ? `<img class="photo-preview" src="${ph.dataUrl}" alt="Your meal photo">` : ""}
         <div class="photo-actions">
           <label class="btn ${ph ? "" : "primary"} photo-btn">${icon.camera}<span>${ph ? "Retake" : "Take photo"}</span><input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only photo-input"></label>
@@ -523,8 +516,8 @@
         ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span>${esc(shortName(b.name))}${b.portion ? ` <span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted">${Math.round(b.kcal || 0)}</span></li>`).join("")}</ul>`
         : r.items ? `<span class="note">${esc(r.items)}</span>` : "";
       return `<li>
-        <span><b class="cap">${esc(r.meal)}</b>${r.location ? ` <span class="muted small">· ${esc(r.location)}</span>` : ""}${ai ? `<br><span class="pill">AI estimate${r.breakdown?.some?.((b) => b.from_menu) ? " · menu" : ""}${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
-        <span class="dose">${Math.round(r.kcal || 0).toLocaleString()} kcal<br><span class="macros muted small"><span>${Math.round(r.protein_g || 0)}P</span><span>${Math.round(r.carbs_g || 0)}C</span><span>${Math.round(r.fat_g || 0)}F</span></span></span>
+        <span><b class="cap">${esc(r.meal)}</b>${ai ? `<br><span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
+        <span class="dose">${Math.round(r.kcal || 0).toLocaleString()} kcal<br><span class="muted small">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
         ${parts}
         ${r.ai_comment ? `<span class="note">${esc(r.ai_comment)}</span>` : ""}
         <span class="row-actions"><button class="btn small ghost" data-act="edit-meal" data-idx="${idx}">Edit</button><button class="btn small ghost" data-act="delete-meal" data-idx="${idx}">Delete</button></span>
@@ -646,10 +639,6 @@
     if (a === "add-set") { const sets = S.draft.exercises[i].sets; sets.push({ ...(sets[sets.length - 1] || { reps: "", load: "", rpe: "" }) }); render(); }
     if (a === "rm-set") { S.draft.exercises[i].sets.splice(j, 1); render(); }
     if (a === "reset-draft") { S.draft = newDraft(); render(); }
-    if (a === "pick-loc" && S.meal) {
-      S.meal.location = t.dataset.v; store.set("ritmo.location", t.dataset.v);
-      t.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === t));
-    }
     if (a === "pick") {
       const grp = t.parentElement; grp.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === t));
       t.closest("form").querySelector(`input[name="${t.dataset.name}"]`).value = t.dataset.v;
