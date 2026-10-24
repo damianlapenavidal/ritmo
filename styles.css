@@ -301,6 +301,11 @@ tbody tr:last-child td { border-bottom: 0; }
 .pending:not(:has(img)) { grid-template-columns: 1fr auto; }
 .pending.is-error svg { width: 14px; height: 14px; color: var(--warning); vertical-align: -2px; }
 .meal-list .dose { text-align: right; }
+.meal-list .pill { margin-top: 4px; }
+.meal-items { grid-column: 1 / -1; list-style: none; margin: 8px 0 2px; padding: 10px 12px; display: grid; gap: 8px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 14px; }
+.ex-list .meal-items li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 0; border: 0; }
+.meal-items li > span:last-child { text-align: right; white-space: nowrap; }
+.meal-list .note { margin-top: 4px; }
 .row-actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 .row-actions .btn { min-height: 34px; padding: 4px 14px; font-size: 13px; }
 .card-head .btn svg { width: 16px; height: 16px; }

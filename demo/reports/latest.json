@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-23T22:00:46",
+  "generated": "2026-10-23T23:23:51",
   "as_of": "2026-10-23",
   "phase": "phase-1",
   "phase_week": 5,
@@ -8,12 +8,12 @@
     "missing_profile_fields": [],
     "bmr": 1754,
     "tdee_formula": 2719,
-    "tdee_adaptive": 3065,
+    "tdee_adaptive": 3028,
     "tdee_used": "adaptive",
-    "kcal": 3060,
+    "kcal": 3030,
     "protein_g": 134,
-    "fat_g": 92,
-    "carbs_g": 425
+    "fat_g": 91,
+    "carbs_g": 418
   },
   "weight": {
     "latest_kg": 74.6,
@@ -38,8 +38,8 @@
   },
   "nutrition_7d": {
     "days_logged": 6,
-    "kcal": 2816,
-    "protein_g": 140
+    "kcal": 2701,
+    "protein_g": 139
   },
   "nutrition_daily": {
     "2026-09-19": {
@@ -239,10 +239,10 @@
       "meals": 3
     },
     "2026-10-23": {
-      "kcal": 2882,
-      "protein_g": 143,
-      "carbs_g": 360,
-      "fat_g": 90,
+      "kcal": 2190,
+      "protein_g": 136,
+      "carbs_g": 248,
+      "fat_g": 71,
       "meals": 3
     }
   },

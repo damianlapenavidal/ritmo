@@ -510,9 +510,15 @@
     const row = (r) => {
       const idx = S.data.nutrition.indexOf(r);
       const ai = r.source === "photo-ai" || r.source === "photo-estimate";
+      // Older estimates packed details into the name: "French toast (pan-fried in butter)".
+      const shortName = (s) => String(s || "").replace(/\s*\(.*$/, "") || s;
+      const parts = Array.isArray(r.breakdown) && r.breakdown.length
+        ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span>${esc(shortName(b.name))}${b.portion ? ` <span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted">${Math.round(b.kcal || 0)}</span></li>`).join("")}</ul>`
+        : r.items ? `<span class="note">${esc(r.items)}</span>` : "";
       return `<li>
-        <span><b class="cap">${esc(r.meal)}</b>${ai ? ` <span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}<br><span class="muted small">${esc(r.items || "")}</span></span>
+        <span><b class="cap">${esc(r.meal)}</b>${ai ? `<br><span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
         <span class="dose">${Math.round(r.kcal || 0).toLocaleString()} kcal<br><span class="muted small">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
+        ${parts}
         ${r.ai_comment ? `<span class="note">${esc(r.ai_comment)}</span>` : ""}
         <span class="row-actions"><button class="btn small ghost" data-act="edit-meal" data-idx="${idx}">Edit</button><button class="btn small ghost" data-act="delete-meal" data-idx="${idx}">Delete</button></span>
       </li>`;
