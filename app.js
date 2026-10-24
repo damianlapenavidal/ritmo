@@ -518,7 +518,7 @@
       </li>`;
     };
     return `<h1>Food</h1>
-      <section class="card"><div class="card-head"><h2>Today</h2><button class="btn small" data-act="goto-log" data-tab="meal">${icon.camera} Meal</button></div>
+      <section class="card"><div class="card-head"><h2>Today</h2></div>
         <div class="totals">${cell("kcal", "Calories", "kcal")}${cell("protein_g", "Protein", "g")}${cell("carbs_g", "Carbs", "g")}${cell("fat_g", "Fat", "g")}</div>
         ${pend.length ? `<div class="stack pending-list">${pend.map((p) => `<div class="pending ${p.error ? "is-error" : ""}">
             ${p.thumb ? `<img src="${p.thumb}" alt="">` : ""}
