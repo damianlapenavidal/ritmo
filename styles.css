@@ -258,3 +258,7 @@ td.num, th.num { text-align: right; }
 .card-head .btn svg { width: 16px; height: 16px; }
 .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .photo-actions .btn { padding-left: 10px; padding-right: 10px; }
+
+/* long words (error messages, food names, URLs) wrap instead of widening the page */
+main { overflow-x: clip; }
+.pending > div, .ex-list li > span, .flag span, .banner { min-width: 0; overflow-wrap: anywhere; }

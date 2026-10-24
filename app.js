@@ -606,7 +606,7 @@
     const r = S.data?.report;
     $("#phase-label").textContent = r ? `${r.phase}${r.phase_week ? ` · wk ${r.phase_week}` : ""}${live() ? "" : " · demo"}` : "";
     $("#view").innerHTML = S.data || v === "settings" ? views[v]() : '<div class="empty">Loading…</div>';
-    after[v]?.();
+    if (S.data) after[v]?.(); // charts need data; skip while loading
   }
   function go(view) { location.hash = view; }
   window.addEventListener("hashchange", () => { S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today"; render(); window.scrollTo(0, 0); });
