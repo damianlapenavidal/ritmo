@@ -256,3 +256,5 @@ td.num, th.num { text-align: right; }
 .row-actions { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px; }
 .row-actions .btn { min-height: 30px; padding: 4px 10px; font-size: 13px; }
 .card-head .btn svg { width: 16px; height: 16px; }
+.photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.photo-actions .btn { padding-left: 10px; padding-right: 10px; }

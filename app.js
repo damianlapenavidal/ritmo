@@ -27,6 +27,7 @@
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M5 12l5 5 9-10"/></svg>',
     camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>',
   };
+  icon.gallery = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg>';
   const PHOTO_MAX = 1024; // long edge in px; enough detail for food, small upload
 
   function toast(msg, ms = 2600) {
@@ -158,7 +159,7 @@
       const url = URL.createObjectURL(file);
       const im = new Image();
       im.onload = () => { URL.revokeObjectURL(url); resolve(im); };
-      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Couldn't read that photo. Try JPEG or PNG.")); };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("This browser can't open that photo format (often HEIC). Take a new photo, or share it as JPEG.")); };
       im.src = url;
     });
     const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
@@ -388,7 +389,10 @@
     return `
       <div class="photo-box">
         ${ph ? `<img class="photo-preview" src="${ph.dataUrl}" alt="Your meal photo">` : ""}
-        <label class="btn ${ph ? "" : "primary"} photo-btn">${icon.camera}<span>${ph ? "Retake photo" : "Snap your plate"}</span><input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only"></label>
+        <div class="photo-actions">
+          <label class="btn ${ph ? "" : "primary"} photo-btn">${icon.camera}<span>${ph ? "Retake" : "Take photo"}</span><input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only photo-input"></label>
+          <label class="btn photo-btn">${icon.gallery}<span>${ph ? "Pick another" : "From gallery"}</span><input type="file" accept="image/*" id="gallery-input" class="sr-only photo-input"></label>
+        </div>
         ${ph ? `
           <label class="field"><span>Note for the AI (optional)</span><input data-m="note" value="${esc(m.note || "")}" placeholder="e.g. 2 scoops rice, ranch dressing, half eaten"></label>
           <div class="btn-row"><button type="button" class="btn primary" data-act="send-photo">Estimate with AI</button><button type="button" class="btn ghost" data-act="clear-photo">Remove photo</button></div>`
@@ -671,7 +675,7 @@
   });
 
   document.addEventListener("change", async (e) => {
-    if (e.target.id !== "photo-input" || !e.target.files?.[0]) return;
+    if (!e.target.classList?.contains("photo-input") || !e.target.files?.[0]) return;
     try {
       const dataUrl = await resizeImage(e.target.files[0]);
       S.photo = { dataUrl };
