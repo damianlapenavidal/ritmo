@@ -70,6 +70,7 @@ body {
   font: 15px/1.5 var(--font-body);
   font-variant-numeric: tabular-nums;
   padding-bottom: 84px;
+  overscroll-behavior-y: contain;
 }
 h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; line-height: 1.1; margin: 0; }
 h1 { font-size: 30px; text-transform: uppercase; }
@@ -225,3 +226,33 @@ td.num, th.num { text-align: right; }
 .banner { padding: 10px 14px; border-radius: var(--radius-sm); background: var(--accent-soft); font-size: 14px; }
 .empty { text-align: center; padding: 24px 8px; color: var(--ink-3); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* pull to refresh */
+.ptr {
+  position: fixed; top: -44px; left: 50%; z-index: 30; transform: translate(-50%, 0);
+  width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--ink-3);
+  transition: color .15s;
+}
+.ptr svg { width: 18px; height: 18px; transition: transform .2s; }
+.ptr.ready { color: var(--accent); }
+.ptr.ready svg { transform: rotate(180deg); }
+.is-refreshing .ptr { transform: translate(-50%, 60px) !important; color: var(--accent); }
+.is-refreshing .ptr svg, .is-refreshing #refresh-btn svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .is-refreshing .ptr svg, .is-refreshing #refresh-btn svg { animation: none; } }
+
+/* photo meals */
+.photo-box { display: grid; gap: 12px; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius); background: var(--surface-2); }
+.photo-btn { width: 100%; cursor: pointer; }
+.photo-preview { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-sm); display: block; }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--ink-3); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.pending { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 14px; }
+.pending img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
+.pending:not(:has(img)) { grid-template-columns: 1fr auto; }
+.pending.is-error svg { width: 14px; height: 14px; color: var(--warning); vertical-align: -2px; }
+.meal-list .dose { text-align: right; }
+.row-actions { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px; }
+.row-actions .btn { min-height: 30px; padding: 4px 10px; font-size: 13px; }
+.card-head .btn svg { width: 16px; height: 16px; }

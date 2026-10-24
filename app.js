@@ -25,7 +25,9 @@
     info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M5 12l5 5 9-10"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>',
   };
+  const PHOTO_MAX = 1024; // long edge in px; enough detail for food, small upload
 
   function toast(msg, ms = 2600) {
     const t = document.createElement("div");
@@ -43,7 +45,11 @@
     draft: null,
     meal: null,
     queue: store.get("ritmo.queue", []),
+    pending: store.get("ritmo.pending", []), // photo meals waiting for the AI estimate
+    photo: null,
+    loadedAt: 0,
   };
+  const savePending = () => store.set("ritmo.pending", S.pending);
   const live = () => !S.cfg.demo && S.cfg.token && S.cfg.owner && S.cfg.repo;
 
   // ---------- data layer ----------
@@ -82,6 +88,21 @@
       const text = (f.text && !f.text.endsWith("\n") ? f.text + "\n" : f.text) + JSON.stringify(obj) + "\n";
       try { return await putFile(path, text, f.sha, message); }
       catch (e) { if (e.status !== 409 && e.status !== 422) throw e; } // sha race: retry
+    }
+    throw new Error("Could not save after 3 tries");
+  }
+
+  // Replace (or delete, when next is null) one existing log line, matched by its exact JSON.
+  async function replaceLine(path, orig, next, message) {
+    const key = JSON.stringify(orig);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const f = await getFile(path);
+      const lines = f.text.split("\n");
+      const idx = lines.findIndex((l) => { try { return l.trim() && JSON.stringify(JSON.parse(l)) === key; } catch { return false; } });
+      if (idx < 0) throw new Error("Couldn't find that entry in your repo. Pull down to refresh and try again.");
+      if (next) lines[idx] = JSON.stringify(next); else lines.splice(idx, 1);
+      try { return await putFile(path, lines.join("\n"), f.sha, message); }
+      catch (e) { if (e.status !== 409 && e.status !== 422) throw e; }
     }
     throw new Error("Could not save after 3 tries");
   }
@@ -127,6 +148,102 @@
     delete exercises._note;
     S.data = { profile, program, exercises, foods: foods.items || [], workouts: parseJsonl(w), nutrition: parseJsonl(n), body: parseJsonl(b), tests: parseJsonl(t), report, weekly };
     for (const q of S.queue) S.data[KEYS[q.kind]].push(q.obj); // show unsynced entries too
+    S.loadedAt = Date.now();
+    resolvePending(await readJSON("inbox/errors.json", {}).catch(() => ({})));
+  }
+
+  // ---------- photo meals ----------
+  async function resizeImage(file, max = PHOTO_MAX, quality = 0.82) {
+    const img = await new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const im = new Image();
+      im.onload = () => { URL.revokeObjectURL(url); resolve(im); };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Couldn't read that photo. Try JPEG or PNG.")); };
+      im.src = url;
+    });
+    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", quality);
+  }
+
+  // Match pending photos to estimated log lines (by photo_id) and pick up errors.
+  function resolvePending(errors = {}) {
+    if (!S.pending.length || !S.data) return [];
+    const done = [];
+    S.pending = S.pending.filter((p) => {
+      const hit = S.data.nutrition.find((r) => r.photo_id === p.id);
+      if (hit) { done.push(hit); return false; }
+      p.error = errors[p.id]?.error || null;
+      return true;
+    });
+    savePending();
+    return done;
+  }
+
+  let pollTimer = null;
+  function schedulePoll() {
+    clearTimeout(pollTimer);
+    if (!S.pending.length || !live()) return;
+    pollTimer = setTimeout(async () => {
+      if (document.visibilityState === "visible") {
+        try {
+          const [n, errs] = await Promise.all([readText("logs/nutrition.jsonl"), readJSON("inbox/errors.json", {})]);
+          S.data.nutrition = parseJsonl(n);
+          for (const q of S.queue) if (q.kind === "meal") S.data.nutrition.push(q.obj);
+          const done = resolvePending(errs);
+          if (done.length) {
+            const d = done[done.length - 1];
+            toast(`Meal estimated: ${Math.round(d.kcal)} kcal, ${Math.round(d.protein_g)} g protein`, 4000);
+            if (!["log", "settings"].includes(S.view)) render();
+          } else if (S.view === "food" && S.pending.some((p) => p.error)) render();
+        } catch { /* offline: try again next tick */ }
+      }
+      schedulePoll();
+    }, 15000);
+  }
+
+  async function sendPhoto() {
+    const m = S.meal, ph = S.photo;
+    const id = `${m.date}-${Date.now().toString(36)}`;
+    const thumb = await (async () => { try { const r = await fetch(ph.dataUrl); return await resizeImage(await r.blob(), 160, 0.7); } catch { return null; } })();
+    const entry = { id, date: m.date, meal: m.meal, note: (m.note || "").trim(), thumb, at: Date.now() };
+    if (!live()) {
+      S.pending.push(entry); savePending();
+      setTimeout(() => {
+        S.data.nutrition.push({ date: m.date, meal: m.meal, items: "grilled chicken (1 breast), rice (1 cup), salad (1 bowl)", kcal: 520, protein_g: 48, carbs_g: 55, fat_g: 11, source: "photo-ai", photo_id: id, confidence: "medium", ai_comment: "Demo estimate: connect your repo for real ones." });
+        const done = resolvePending();
+        if (done.length) toast(`Demo: meal estimated, ${done[0].kcal} kcal`);
+        if (!["log", "settings"].includes(S.view)) render();
+      }, 2500);
+      return;
+    }
+    const payload = { id, date: m.date, meal: m.meal, note: entry.note, media_type: "image/jpeg", image_b64: ph.dataUrl.split(",")[1], uploaded_at: new Date().toISOString() };
+    await putFile(`inbox/meals/${id}.json`, JSON.stringify(payload), null, `photo: ${m.meal} ${m.date}`);
+    S.pending.push(entry); savePending();
+    schedulePoll();
+  }
+
+  // ---------- refresh (pull down, reopen the app, or the refresh button) ----------
+  let refreshing = false;
+  async function refresh({ manual = false } = {}) {
+    if (refreshing) return;
+    refreshing = true;
+    document.body.classList.add("is-refreshing");
+    try {
+      await loadAll();
+      if (live()) flushQueue();
+      schedulePoll();
+      // Don't wipe a half-filled form; other screens re-render with fresh data.
+      if (!["log", "settings"].includes(S.view)) render();
+      if (manual) toast("Up to date");
+    } catch (err) {
+      if (manual) toast(`Couldn't refresh: ${err.message}`);
+    } finally {
+      refreshing = false;
+      document.body.classList.remove("is-refreshing");
+    }
   }
   async function latestWeekly() {
     try {
@@ -266,14 +383,30 @@
       <div class="btn-row"><button class="btn primary" type="submit">Save workout</button><button type="button" class="btn ghost" data-act="reset-draft">Clear</button></div>`;
   }
 
+  function photoSection(m) {
+    const ph = S.photo;
+    return `
+      <div class="photo-box">
+        ${ph ? `<img class="photo-preview" src="${ph.dataUrl}" alt="Your meal photo">` : ""}
+        <label class="btn ${ph ? "" : "primary"} photo-btn">${icon.camera}<span>${ph ? "Retake photo" : "Snap your plate"}</span><input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only"></label>
+        ${ph ? `
+          <label class="field"><span>Note for the AI (optional)</span><input data-m="note" value="${esc(m.note || "")}" placeholder="e.g. 2 scoops rice, ranch dressing, half eaten"></label>
+          <div class="btn-row"><button type="button" class="btn primary" data-act="send-photo">Estimate with AI</button><button type="button" class="btn ghost" data-act="clear-photo">Remove photo</button></div>`
+        : `<p class="small muted">Shoot from above with the whole plate in frame. The AI estimates portions and macros in about a minute, and you can edit the result.</p>`}
+      </div>
+      <div class="divider"><span>or enter it yourself</span></div>`;
+  }
+
   function mealForm() {
     S.meal ||= newMeal();
-    const m = S.meal;
+    const m = S.meal, editing = !!m.editing;
     return `
+      ${editing ? `<div class="banner">Editing ${esc(m.meal)} on ${esc(m.date)}${m.editing.source === "photo-ai" ? " (AI estimate)" : ""}</div>` : ""}
       <div class="form-grid">
         <label class="field"><span>Date</span><input type="date" data-m="date" value="${esc(m.date)}"></label>
         <label class="field"><span>Meal</span><select data-m="meal">${["breakfast", "lunch", "dinner", "snack"].map((t) => `<option ${m.meal === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </div>
+      ${editing ? "" : photoSection(m)}
       <div><div class="eyebrow" style="margin-bottom:6px">Quick add (estimates)</div>
         <div class="chips">${S.data.foods.map((f, i) => `<button type="button" class="chip" data-act="add-food" data-i="${i}">${esc(f.name)}</button>`).join("")}</div>
       </div>
@@ -283,7 +416,7 @@
         <label class="field full"><span>What else</span><input data-m="extra" value="${esc(m.extra || "")}" placeholder="e.g. stir-fry station, extra chicken"></label>
       </div>
       <p class="small muted">For exact numbers, look the item up in <a href="https://web.uri.edu/dining/whatisnetnutrition" target="_blank" rel="noopener">URI NetNutrition</a> and type them in. Quick-add values are rough averages.</p>
-      <div class="btn-row"><button class="btn primary" type="submit">Save meal</button></div>`;
+      <div class="btn-row"><button class="btn primary" type="submit">${editing ? "Save changes" : "Save meal"}</button>${editing ? '<button type="button" class="btn ghost" data-act="cancel-edit">Cancel</button>' : ""}</div>`;
   }
 
   function bodyForm() {
@@ -362,10 +495,26 @@
   views.food = () => {
     const iso = today(), n = dayNutrition(iso), tg = targets();
     const cell = (k, label, unit) => `<div>${label}<b>${Math.round(n[k])}</b><span class="small muted">${tg[k] ? `/ ${tg[k]} ${unit}` : unit}</span></div>`;
+    const pend = S.pending;
+    const row = (r) => {
+      const idx = S.data.nutrition.indexOf(r);
+      const ai = r.source === "photo-ai" || r.source === "photo-estimate";
+      return `<li>
+        <span><b>${esc(r.meal)}</b>${ai ? ` <span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}<br><span class="muted small">${esc(r.items || "")}</span></span>
+        <span class="dose">${Math.round(r.kcal || 0)} kcal<br><span class="muted small">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
+        ${r.ai_comment ? `<span class="note">${esc(r.ai_comment)}</span>` : ""}
+        <span class="row-actions"><button class="btn small ghost" data-act="edit-meal" data-idx="${idx}">Edit</button><button class="btn small ghost" data-act="delete-meal" data-idx="${idx}">Delete</button></span>
+      </li>`;
+    };
     return `<h1>Food</h1>
-      <section class="card"><div class="card-head"><h2>Today</h2><button class="btn small" data-act="goto-log" data-tab="meal">+ Meal</button></div>
+      <section class="card"><div class="card-head"><h2>Today</h2><button class="btn small" data-act="goto-log" data-tab="meal">${icon.camera} Meal</button></div>
         <div class="totals">${cell("kcal", "Calories", "kcal")}${cell("protein_g", "Protein", "g")}${cell("carbs_g", "Carbs", "g")}${cell("fat_g", "Fat", "g")}</div>
-        ${n.rows.length ? `<ul class="ex-list" style="margin-top:12px">${n.rows.map((r) => `<li><span><b>${esc(r.meal)}</b> <span class="muted">${esc(r.items || "")}</span></span><span class="dose">${Math.round(r.kcal || 0)} kcal · ${Math.round(r.protein_g || 0)} g P</span></li>`).join("")}</ul>` : '<div class="empty">Nothing logged today</div>'}
+        ${pend.length ? `<div class="stack" style="margin-top:12px">${pend.map((p) => `<div class="pending ${p.error ? "is-error" : ""}">
+            ${p.thumb ? `<img src="${p.thumb}" alt="">` : ""}
+            <div><b>${esc(p.meal)} photo</b><br><span class="small ${p.error ? "" : "muted"}">${p.error ? `${icon.warn} Couldn't estimate: ${esc(p.error)}` : "Estimating… usually about a minute"}</span></div>
+            <button class="icon-btn" data-act="dismiss-pending" data-id="${esc(p.id)}" aria-label="Hide this photo">${icon.x}</button>
+          </div>`).join("")}</div>` : ""}
+        ${n.rows.length ? `<ul class="ex-list meal-list" style="margin-top:12px">${n.rows.map(row).join("")}</ul>` : pend.length ? "" : '<div class="empty">Nothing logged today</div>'}
       </section>
       <div class="grid-2">
         <section class="card"><div class="card-head"><h3>Calories, last 14 days</h3></div><div id="ch-kcal"></div><div class="legend"><span><i class="dash"></i>Target</span></div></section>
@@ -484,6 +633,50 @@
     }
     if (a === "demo") { S.cfg.demo = !S.cfg.demo; store.set("ritmo.cfg", S.cfg); await boot(); go("today"); }
     if (a === "sync") flushQueue();
+    if (a === "clear-photo") { S.photo = null; render(); }
+    if (a === "send-photo") {
+      t.disabled = true; t.textContent = "Sending…";
+      try {
+        await sendPhoto();
+        toast(live() ? "Photo sent. Estimate ready in about a minute" : "Demo: estimating…");
+        S.photo = null; S.meal = null; go("food");
+      } catch (err) { toast(`Couldn't send the photo: ${err.message}`); t.disabled = false; t.textContent = "Estimate with AI"; }
+    }
+    if (a === "dismiss-pending") { S.pending = S.pending.filter((p) => p.id !== t.dataset.id); savePending(); render(); }
+    if (a === "edit-meal") {
+      const r = S.data.nutrition[+t.dataset.idx];
+      if (!r) return;
+      S.photo = null;
+      S.meal = { date: r.date.slice(0, 10), meal: r.meal, items: [], extra: r.items || "", kcal: r.kcal ?? "", protein_g: r.protein_g ?? "", carbs_g: r.carbs_g ?? "", fat_g: r.fat_g ?? "", editing: r };
+      S.logTab = "meal"; go("log");
+    }
+    if (a === "cancel-edit") { S.meal = null; go("food"); }
+    if (a === "delete-meal") {
+      if (!t.dataset.armed) { // two taps to delete, no pop-up
+        t.dataset.armed = "1"; t.textContent = "Tap again to delete";
+        setTimeout(() => { if (t.isConnected) { delete t.dataset.armed; t.textContent = "Delete"; } }, 3000);
+        return;
+      }
+      const r = S.data.nutrition[+t.dataset.idx];
+      if (!r) return;
+      t.disabled = true;
+      try {
+        if (live() && !S.queue.some((q) => q.obj === r)) await replaceLine(LOGS.meal, r, null, `log: delete ${r.meal} ${r.date}`);
+        S.queue = S.queue.filter((q) => q.obj !== r); store.set("ritmo.queue", S.queue);
+        S.data.nutrition.splice(S.data.nutrition.indexOf(r), 1);
+        toast(live() ? "Deleted" : "Demo mode: deleted here only");
+        render();
+      } catch (err) { toast(err.message); t.disabled = false; }
+    }
+  });
+
+  document.addEventListener("change", async (e) => {
+    if (e.target.id !== "photo-input" || !e.target.files?.[0]) return;
+    try {
+      const dataUrl = await resizeImage(e.target.files[0]);
+      S.photo = { dataUrl };
+      render();
+    } catch (err) { toast(err.message); }
   });
 
   document.addEventListener("input", (e) => {
@@ -531,7 +724,18 @@
         const m = S.meal;
         if (!m.kcal && !m.protein_g) { toast("Add calories or protein"); return; }
         const items = [...m.items, m.extra].filter(Boolean).join(", ");
-        await saveEntry("meal", { date: m.date, meal: m.meal, items: items || undefined, kcal: +m.kcal || 0, protein_g: +m.protein_g || 0, carbs_g: +m.carbs_g || 0, fat_g: +m.fat_g || 0 });
+        const fields = { date: m.date, meal: m.meal, items: items || undefined, kcal: +m.kcal || 0, protein_g: +m.protein_g || 0, carbs_g: +m.carbs_g || 0, fat_g: +m.fat_g || 0 };
+        if (m.editing) {
+          const orig = m.editing;
+          const next = JSON.parse(JSON.stringify({ ...orig, ...fields, ...(orig.source ? { edited: true } : {}) }));
+          const queued = S.queue.find((q) => q.obj === orig);
+          if (live() && !queued) await replaceLine(LOGS.meal, orig, next, `log: edit ${next.meal} ${next.date}`);
+          if (queued) { queued.obj = next; store.set("ritmo.queue", S.queue); }
+          S.data.nutrition[S.data.nutrition.indexOf(orig)] = next;
+          toast(live() ? "Meal updated" : "Demo mode: updated here only");
+        } else {
+          await saveEntry("meal", fields);
+        }
         S.meal = null; go("food");
       } else if (kind === "body") {
         const fd = Object.fromEntries(new FormData(f));
@@ -559,7 +763,33 @@
     const next = cur === "dark" ? "light" : "dark"; applyTheme(next); store.set("ritmo.theme", next); render();
   });
   $("#settings-btn").addEventListener("click", () => go("settings"));
+  $("#refresh-btn").addEventListener("click", () => refresh({ manual: true }));
   window.addEventListener("online", flushQueue);
+
+  // Home-screen apps resume without reloading: refresh when the app comes back to the front.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && S.data && Date.now() - S.loadedAt > 30000) refresh();
+  });
+
+  // Pull down from the top of the page to refresh.
+  (() => {
+    const ptr = $("#ptr");
+    let startY = null, dist = 0;
+    const reset = () => { startY = null; dist = 0; ptr.style.transform = ""; ptr.classList.remove("ready"); };
+    window.addEventListener("touchstart", (e) => { if (window.scrollY <= 0 && !refreshing && e.touches.length === 1) startY = e.touches[0].clientY; }, { passive: true });
+    window.addEventListener("touchmove", (e) => {
+      if (startY == null) return;
+      dist = e.touches[0].clientY - startY;
+      if (dist <= 0 || window.scrollY > 0) { reset(); return; }
+      const pull = Math.min(dist * 0.5, 80);
+      ptr.style.transform = `translate(-50%, ${pull}px)`;
+      ptr.classList.toggle("ready", pull >= 60);
+    }, { passive: true });
+    window.addEventListener("touchend", () => {
+      if (startY != null && ptr.classList.contains("ready")) refresh({ manual: true });
+      reset();
+    });
+  })();
   let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => S.data && after[S.view]?.(), 200); });
 
   async function boot() {
@@ -567,6 +797,7 @@
     try { await loadAll(); }
     catch (err) { S.data = null; toast(`Couldn't load data: ${err.message}. Check owner, repo and token.`, 5000); S.view = "settings"; }
     render();
+    schedulePoll();
   }
 
   S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today";
