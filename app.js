@@ -514,7 +514,7 @@
       const shortName = (s) => String(s || "").replace(/\s*\(.*$/, "") || s;
       const parts = Array.isArray(r.breakdown) && r.breakdown.length
         ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span>${esc(shortName(b.name))}${b.portion ? ` <span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted">${Math.round(b.kcal || 0)}</span></li>`).join("")}</ul>`
-        : r.items ? `<span class="note">${esc(r.items)}</span>` : "";
+        : r.items ? `<ul class="meal-items">${String(r.items).split(/,(?![^()]*\))/).map((s) => s.trim()).filter(Boolean).map((s) => `<li><span>${esc(s[0].toUpperCase() + s.slice(1))}</span></li>`).join("")}</ul>` : "";
       return `<li>
         <span><b class="cap">${esc(r.meal)}</b>${ai ? `<br><span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
         <span class="dose">${Math.round(r.kcal || 0).toLocaleString()} kcal<br><span class="muted small">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
