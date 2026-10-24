@@ -80,7 +80,7 @@ body {
   padding-bottom: calc(84px + var(--safe-bottom)); /* clear the tab bar and the home indicator */
   overscroll-behavior-y: contain;
 }
-button, .btn, .chip, .tab, input, select, textarea, label { touch-action: manipulation; }
+button, .btn, .tab, input, select, textarea, label { touch-action: manipulation; }
 h1, h2 { text-wrap: balance; }
 p, li, .sub, .note, .banner { text-wrap: pretty; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; line-height: 1.1; margin: 0; }
@@ -222,9 +222,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { margin-left: auto; }
 .icon-btn svg { width: 16px; height: 16px; }
 .ex-block { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: var(--surface); }
 .ex-block + .ex-block { margin-top: 10px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; text-align: left; }
-.chip:hover { border-color: var(--accent); }
 .totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
 .totals .label { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 .totals b { display: block; font-family: var(--font-display); font-size: 28px; line-height: 1.1; margin-top: 4px; }

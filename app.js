@@ -150,13 +150,13 @@
   }
 
   async function loadAll() {
-    const [profile, program, exercises, foods, w, n, b, t, report, weekly] = await Promise.all([
-      readJSON("data/profile.json", {}), readJSON("data/program.json", {}), readJSON("data/exercises.json", {}), readJSON("data/foods.json", { items: [] }),
+    const [profile, program, exercises, w, n, b, t, report, weekly] = await Promise.all([
+      readJSON("data/profile.json", {}), readJSON("data/program.json", {}), readJSON("data/exercises.json", {}),
       readText("logs/workouts.jsonl"), readText("logs/nutrition.jsonl"), readText("logs/body.jsonl"), readText("logs/tests.jsonl"),
       readJSON("reports/latest.json", null), latestWeekly(),
     ]);
     delete exercises._note;
-    S.data = { profile, program, exercises, foods: foods.items || [], workouts: parseJsonl(w), nutrition: parseJsonl(n), body: parseJsonl(b), tests: parseJsonl(t), report, weekly };
+    S.data = { profile, program, exercises, workouts: parseJsonl(w), nutrition: parseJsonl(n), body: parseJsonl(b), tests: parseJsonl(t), report, weekly };
     for (const q of S.queue) S.data[KEYS[q.kind]].push(q.obj); // show unsynced entries too
     S.loadedAt = Date.now();
     resolvePending(await readJSON("inbox/errors.json", {}).catch(() => ({})));
@@ -354,7 +354,7 @@
     const exercises = (tpl?.blocks || []).filter((b) => exNames.has(b.exercise)).map((b) => ({ name: b.exercise, sets: Array.from({ length: +b.sets || 3 }, () => ({ reps: "", load: "", rpe: "" })) }));
     return { date: today(), type: tpl?.type === "conditioning" ? "conditioning" : "lift", session: tpl?.name || "", duration_min: "", notes: "", exercises: exercises.length ? exercises : tpl?.type === "conditioning" ? [] : [{ name: "", sets: [{ reps: "", load: "", rpe: "" }] }] };
   }
-  const newMeal = () => ({ date: today(), meal: guessMeal(), items: [], kcal: "", protein_g: "", carbs_g: "", fat_g: "" });
+  const newMeal = () => ({ date: today(), meal: guessMeal(), kcal: "", protein_g: "", carbs_g: "", fat_g: "" });
   const guessMeal = () => { const h = new Date().getHours(); return h < 11 ? "breakfast" : h < 16 ? "lunch" : h < 21 ? "dinner" : "snack"; };
 
   views.log = () => {
@@ -424,15 +424,9 @@
         <label class="field"><span>Meal</span><select data-m="meal">${options(["breakfast", "lunch", "dinner", "snack"], m.meal)}</select></label>
       </div>
       ${editing ? `
-      <div><div class="eyebrow" style="margin-bottom:6px">Quick add (estimates)</div>
-        <div class="chips">${S.data.foods.map((f, i) => `<button type="button" class="chip" data-act="add-food" data-i="${i}">${esc(f.name)}</button>`).join("")}</div>
-      </div>
-      ${m.items.length ? `<p class="small"><b>Items:</b> ${esc(m.items.join(", "))} <button type="button" class="btn small ghost" data-act="clear-food">Clear</button></p>` : ""}
       <div class="form-grid">
         ${[["kcal", "Calories"], ["protein_g", "Protein g"], ["carbs_g", "Carbs g"], ["fat_g", "Fat g"]].map(([k, l]) => `<label class="field"><span>${l}</span><input type="number" inputmode="decimal" step="any" data-m="${k}" value="${esc(m[k])}"></label>`).join("")}
-        <label class="field full"><span>What else</span><input data-m="extra" value="${esc(m.extra || "")}" placeholder="e.g. stir-fry station, extra chicken"></label>
       </div>
-      <p class="small muted">For exact numbers, look the item up in <a href="https://web.uri.edu/dining/whatisnetnutrition" target="_blank" rel="noopener">URI NetNutrition</a> and type them in. Quick-add values are rough averages.</p>
       <div class="btn-row"><button class="btn primary" type="submit">Save changes</button><button type="button" class="btn ghost" data-act="cancel-edit">Cancel</button></div>` : photoSection(m)}`;
   }
 
@@ -639,13 +633,6 @@
     if (a === "add-set") { const sets = S.draft.exercises[i].sets; sets.push({ ...(sets[sets.length - 1] || { reps: "", load: "", rpe: "" }) }); render(); }
     if (a === "rm-set") { S.draft.exercises[i].sets.splice(j, 1); render(); }
     if (a === "reset-draft") { S.draft = newDraft(); render(); }
-    if (a === "add-food") {
-      const f = S.data.foods[+t.dataset.i];
-      for (const k of ["kcal", "protein_g", "carbs_g", "fat_g"]) S.meal[k] = round((+S.meal[k] || 0) + (f[k] || 0), 0.1);
-      S.meal.items.push(f.name.replace(/\s*\(.*\)$/, ""));
-      render();
-    }
-    if (a === "clear-food") { S.meal = { ...newMeal(), date: S.meal.date, meal: S.meal.meal }; render(); }
     if (a === "pick") {
       const grp = t.parentElement; grp.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === t));
       t.closest("form").querySelector(`input[name="${t.dataset.name}"]`).value = t.dataset.v;
@@ -666,7 +653,7 @@
       const r = S.data.nutrition[+t.dataset.idx];
       if (!r) return;
       S.photo = null;
-      S.meal = { date: r.date.slice(0, 10), meal: r.meal, items: [], extra: r.items || "", kcal: r.kcal ?? "", protein_g: r.protein_g ?? "", carbs_g: r.carbs_g ?? "", fat_g: r.fat_g ?? "", editing: r };
+      S.meal = { date: r.date.slice(0, 10), meal: r.meal, kcal: r.kcal ?? "", protein_g: r.protein_g ?? "", carbs_g: r.carbs_g ?? "", fat_g: r.fat_g ?? "", editing: r };
       S.logTab = "meal"; go("log");
     }
     if (a === "cancel-edit") { S.meal = null; go("food"); }
@@ -746,8 +733,7 @@
         const m = S.meal;
         if (!m.editing) { f.querySelector('[data-act="send-photo"]')?.click(); return; }
         if (!m.kcal && !m.protein_g) { toast("Add calories or protein"); return; }
-        const items = [...m.items, m.extra].filter(Boolean).join(", ");
-        const fields = { date: m.date, meal: m.meal, items: items || undefined, kcal: +m.kcal || 0, protein_g: +m.protein_g || 0, carbs_g: +m.carbs_g || 0, fat_g: +m.fat_g || 0 };
+        const fields = { date: m.date, meal: m.meal, kcal: +m.kcal || 0, protein_g: +m.protein_g || 0, carbs_g: +m.carbs_g || 0, fat_g: +m.fat_g || 0 };
         const orig = m.editing;
         const next = JSON.parse(JSON.stringify({ ...orig, ...fields, ...(orig.source ? { edited: true } : {}) }));
         const queued = S.queue.find((q) => q.obj === orig);
