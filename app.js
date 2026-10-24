@@ -539,9 +539,9 @@
       </div>
       <section class="card"><h2>Dining hall playbook</h2>
         <ul class="small" style="padding-left:18px;margin:12px 0 0">
-          <li>Protein first (a palm or two), then carbs, then vegetables.</li>
-          <li>Training days: an extra fist of carbs around the session.</li>
-          <li>Thin menu? Greek yogurt, milk or a whey shake.</li>
+          <li>Protein first, then carbs, then veg.</li>
+          <li>Training day? Add a fist of carbs.</li>
+          <li>Thin menu? Greek yogurt, milk or whey.</li>
         </ul></section>`;
   };
   function drawFood() {
