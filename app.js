@@ -624,7 +624,16 @@
     if (S.data) after[v]?.(); // charts need data; skip while loading
   }
   function go(view) { location.hash = view; }
-  window.addEventListener("hashchange", () => { S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today"; render(); window.scrollTo(0, 0); });
+  window.addEventListener("hashchange", () => { S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today"; if (S.view !== "log" && S.meal?.editing) S.meal = null; render(); window.scrollTo(0, 0); });
+
+  // A meal edit only survives taps on its own fields and Save; any other button, link or tab drops it.
+  document.addEventListener("click", (e) => {
+    if (!S.meal?.editing) return;
+    const t = e.target.closest("button, a, [data-act], [data-view]");
+    if (!t || (t.closest("#log-form") && t.matches('[type="submit"]'))) return;
+    S.meal = null;
+    setTimeout(() => { if (S.view === "log" && document.querySelector('[data-act="cancel-edit"]')) render(); });
+  }, true);
 
   document.addEventListener("click", async (e) => {
     const t = e.target.closest("[data-act],[data-view]");
