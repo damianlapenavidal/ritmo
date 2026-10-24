@@ -291,9 +291,9 @@ tbody tr:last-child td { border-bottom: 0; }
 .ptr.ready { color: var(--accent); }
 .ptr.ready svg { transform: rotate(180deg); }
 .is-refreshing .ptr { transform: translate(-50%, calc(60px + var(--safe-top))) !important; color: var(--accent); }
-.is-refreshing .ptr svg, .is-refreshing #refresh-btn svg { animation: spin .8s linear infinite; }
+.is-refreshing .ptr svg { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .is-refreshing .ptr svg, .is-refreshing #refresh-btn svg { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .is-refreshing .ptr svg { animation: none; } }
 
 /* photo meals */
 .photo-box { display: grid; gap: 12px; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius); background: var(--surface-2); }

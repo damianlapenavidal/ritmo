@@ -235,7 +235,7 @@
     schedulePoll();
   }
 
-  // ---------- refresh (pull down, reopen the app, or the refresh button) ----------
+  // ---------- refresh (pull down or reopen the app) ----------
   let refreshing = false;
   async function refresh({ manual = false } = {}) {
     if (refreshing) return;
@@ -337,10 +337,9 @@
           <button class="btn" data-act="goto-log" data-tab="body">+ Check-in</button>
         </div>
       </section>
-      <section class="card"><div class="card-head"><h2>Coach</h2>${r.flags?.length ? `<span class="small muted">flags updated ${esc(r.as_of || "")}</span>` : ""}</div>
+      <section class="card"><div class="card-head"><h2>Coach</h2></div>
         ${coachUrl(d.profile.coach_project_url)
-          ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://"))}">${icon.chat}Ask coach</a>
-             <p class="small muted coach-hint">Questions during the week: opens your Workout + Nutrition project in the Claude app. Check-ins run automatically every Monday morning. <a href="${esc(coachUrl(d.profile.coach_project_url))}" target="_blank" rel="noopener">Open in the browser instead</a></p>`
+          ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://"))}">${icon.chat}Ask coach</a>`
           : `<a class="btn coach-btn" href="#settings">${icon.chat}Add your coach link</a>
              <p class="small muted coach-hint">Paste your Workout + Nutrition project link in Settings to ask the coach from here.</p>`}
         ${r.flags?.length ? `<div class="coach-flags">${r.flags.map((f) => `<div class="flag ${f.level === "warn" ? "warn" : "info"}">${f.level === "warn" ? icon.warn : icon.info}<span><span class="sr-only">${f.level}: </span>${esc(f.msg)}</span></div>`).join("")}</div>` : ""}
@@ -788,7 +787,6 @@
     const next = cur === "dark" ? "light" : "dark"; applyTheme(next); store.set("ritmo.theme", next); render();
   });
   $("#settings-btn").addEventListener("click", () => go("settings"));
-  $("#refresh-btn").addEventListener("click", () => refresh({ manual: true }));
   window.addEventListener("online", flushQueue);
 
   // Home-screen apps resume without reloading: refresh when the app comes back to the front.
