@@ -539,10 +539,9 @@
       </div>
       <section class="card"><h2>Dining hall playbook</h2>
         <ul class="small" style="padding-left:18px;margin:12px 0 0">
-          <li>Build every plate around a palm or two of protein first (grill, eggs, Greek yogurt, fish), then add carbs, then vegetables.</li>
-          <li>Training days: an extra fist of rice, pasta, potatoes or fruit at the meal before or after the session.</li>
-          <li>Keep a protein backup (Greek yogurt, milk, or a whey shake) for days the menu is thin.</li>
-          <li>Don't need perfect logs. Log protein and a rough calorie number for most meals; the weekly trend does the rest.</li>
+          <li>Protein first (a palm or two), then carbs, then vegetables.</li>
+          <li>Training days: an extra fist of carbs around the session.</li>
+          <li>Thin menu? Greek yogurt, milk or a whey shake.</li>
         </ul></section>`;
   };
   function drawFood() {
