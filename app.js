@@ -34,9 +34,8 @@
   };
   icon.chat = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg>';
   icon.gallery = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg>';
-  // The coach is a Claude Project; the app can only open it. "check-in" is the phrase its instructions answer to.
+  // The coach is a Claude Project; the app can only open it. Weekly check-ins run as a scheduled task, so this is for questions.
   // claude.ai/project/* isn't a universal link (it opens Safari), so the button uses the claude:// scheme to reach the iPhone app.
-  const COACH_MSG = "check-in";
   const coachUrl = (link) => { try { const u = new URL(String(link || "").trim()); return u.protocol === "https:" && u.hostname === "claude.ai" && /^\/project\/[\w-]+\/?$/.test(u.pathname) ? `https://claude.ai${u.pathname.replace(/\/$/, "")}` : null; } catch { return null; } };
   const PHOTO_MAX = 1024; // long edge in px; enough detail for food, small upload
 
@@ -340,10 +339,10 @@
       </section>
       <section class="card"><div class="card-head"><h2>Coach</h2>${r.flags?.length ? `<span class="small muted">flags updated ${esc(r.as_of || "")}</span>` : ""}</div>
         ${coachUrl(d.profile.coach_project_url)
-          ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://"))}?q=${COACH_MSG}" data-act="coach">${icon.chat}Check in with coach</a>
-             <p class="small muted coach-hint">Opens your Workout + Nutrition project in the Claude app with “${COACH_MSG}” copied. Paste it into a new chat and send. <a href="${esc(coachUrl(d.profile.coach_project_url))}?q=${COACH_MSG}" target="_blank" rel="noopener" data-act="coach">Open in the browser instead</a></p>`
+          ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://"))}">${icon.chat}Ask coach</a>
+             <p class="small muted coach-hint">Questions during the week: opens your Workout + Nutrition project in the Claude app. Check-ins run automatically every Monday morning. <a href="${esc(coachUrl(d.profile.coach_project_url))}" target="_blank" rel="noopener">Open in the browser instead</a></p>`
           : `<a class="btn coach-btn" href="#settings">${icon.chat}Add your coach link</a>
-             <p class="small muted coach-hint">Paste your Workout + Nutrition project link in Settings to start check-ins from here.</p>`}
+             <p class="small muted coach-hint">Paste your Workout + Nutrition project link in Settings to ask the coach from here.</p>`}
         ${r.flags?.length ? `<div class="coach-flags">${r.flags.map((f) => `<div class="flag ${f.level === "warn" ? "warn" : "info"}">${f.level === "warn" ? icon.warn : icon.info}<span><span class="sr-only">${f.level}: </span>${esc(f.msg)}</span></div>`).join("")}</div>` : ""}
       </section>
     `;
@@ -612,7 +611,7 @@
           <label class="field full"><span>Phase start date</span><input type="date" name="start_date" value="${esc(p.phase?.start_date || "")}"></label>
           <label class="field full"><span>Coach project link</span><input type="url" name="coach_project_url" value="${esc(p.coach_project_url || "")}" placeholder="https://claude.ai/project/…" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
         </div>
-        <p class="small muted">Open your Workout + Nutrition project on claude.ai, copy its address and paste it here. It's saved in your private repo, so every phone gets the Check in button.</p>
+        <p class="small muted">Open your Workout + Nutrition project on claude.ai, copy its address and paste it here. It's saved in your private repo, so every phone gets the Ask coach button.</p>
         <div class="btn-row"><button class="btn primary" type="submit">Save profile</button></div>
       </form>` : ""}`;
   };
@@ -656,9 +655,6 @@
     }
     if (a === "demo") { S.cfg.demo = !S.cfg.demo; store.set("ritmo.cfg", S.cfg); await boot(); go("today"); }
     if (a === "sync") flushQueue();
-    if (a === "coach") { // let the link open; copy the message so it's one paste away
-      navigator.clipboard?.writeText(COACH_MSG).then(() => toast(`“${COACH_MSG}” copied. Paste it in the new chat`), () => {});
-    }
     if (a === "clear-photo") { S.photo = null; render(); }
     if (a === "send-photo") {
       t.disabled = true; t.textContent = "Sending…";
