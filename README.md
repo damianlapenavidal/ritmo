@@ -4,3 +4,5 @@ The web app for my training and nutrition system. This repo holds only code and 
 My real logs live in a separate private repo; the app reads and writes them through the GitHub API with a fine-grained token stored only in the browser.
 
 Live: https://damianlapenavidal.github.io/ritmo/
+
+Editing: see CLAUDE.md (how it works, rules, local preview) and DESIGN.md (tokens and components).
