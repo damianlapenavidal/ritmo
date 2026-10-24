@@ -325,7 +325,7 @@
       </div>
       <section class="card">
         <div class="card-head"><div class="session-title"><h2>Today's session</h2><span class="pill cap">${esc(sess.type)}</span>${doneToday ? `<span class="pill">${icon.check} Logged</span>` : ""}</div></div>
-        ${sess.blocks?.length ? `<ul class="ex-list">${sess.blocks.map((b) => `<li><span>${esc(b.exercise)}</span><span class="dose">${esc(b.sets)} × ${esc(b.reps)}</span>${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`).join("")}</ul>` : `<p class="muted">Recovery day. A 20-30 min walk and some mobility work count.</p>`}
+        ${sess.blocks?.length ? `<ul class="ex-list">${sess.blocks.map((b) => `<li${`${b.sets} × ${b.reps}`.length > 14 ? ' class="stacked"' : ""}><span>${esc(b.exercise)}</span><span class="dose">${esc(b.sets)} × ${esc(b.reps)}</span>${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`).join("")}</ul>` : `<p class="muted">Recovery day. A 20-30 min walk and some mobility work count.</p>`}
         ${d.program.warmup && sess.blocks?.length ? `<p class="small muted" style="margin-top:12px">Warm-up: ${esc(d.program.warmup)}</p>` : ""}
         <div class="session-actions">
           ${sess.blocks?.length ? `<button class="btn primary" data-act="log-session" data-dow="${dow}">Log this session</button>` : ""}
@@ -463,7 +463,7 @@
     <section class="card"><div class="card-head"><h2>Bodyweight</h2><span class="small muted">kg</span></div><div id="ch-weight"></div>
       <div class="legend"><span><i style="background:var(--series-1)"></i>7-day average</span><span><i style="background:var(--series-1);opacity:.45;height:8px;width:8px;border-radius:50%"></i>Daily weigh-in</span></div></section>
     <section class="card"><div class="card-head"><h2>Strength</h2><select id="lift-pick" style="width:auto;min-height:36px" aria-label="Lift"></select></div><div id="ch-lift"></div>
-      <p class="small muted">Estimated 1-rep max (Epley) from your best set each session, in ${loadUnit()}.</p></section>
+      <p class="small muted">Estimated 1-rep max in ${loadUnit()} (Epley formula), from your best set each session.</p></section>
     <div class="grid-2">
       <section class="card"><div class="card-head"><h2>Sessions per week</h2></div><div id="ch-sessions"></div></section>
       <section class="card"><div class="card-head"><h2>Conditioning minutes</h2></div><div id="ch-cond"></div></section>

@@ -12,7 +12,8 @@ Damian's phone-first training and nutrition app. Static site on GitHub Pages: pu
 ## Rules
 - Never commit real logs, tokens or API keys here. This repo is public.
 - Follow `DESIGN.md`: use the CSS tokens in `styles.css`, never raw hex in components; uppercase only for display headings and labels; status colors always with an icon and words; touch targets at least 44px.
-- Every change must work at 390px wide and on desktop, in light and dark mode (`data-theme` toggle and `prefers-color-scheme`).
+- Target devices are only **iPhone 17 / iPhone 17 Pro (402 × 874 CSS px)** and **iPhone 16 Pro Max (440 × 956)**, in Safari and as a home-screen app. Every change must look right at 402 and 440 px wide, in light and dark mode (`data-theme` toggle and `prefers-color-scheme`). Desktop layout exists but isn't a target; just don't break it.
+- Respect the safe areas: the top bar clears the Dynamic Island (`--safe-top`), the tab bar and page bottom clear the home indicator (`--safe-bottom`), and landscape side insets use `--gutter-l` / `--gutter-r`.
 - Escape anything user-provided with `esc()` before putting it in HTML.
 - Keep it dependency-free. Charts are SVG in `charts.js`; follow the existing patterns (one y-axis per chart, dashed target lines, hover/tap tooltips).
 

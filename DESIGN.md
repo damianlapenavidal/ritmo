@@ -2,6 +2,8 @@
 
 Athletic, calm, data-first. Scoreboard-style condensed numerals over a warm paper background; one pitch-green accent.
 
+Designed for three phones only: iPhone 17 and 17 Pro (402 px wide) and iPhone 16 Pro Max (440 px), portrait first.
+
 ## Color tokens
 | Token | Light | Dark | Use |
 |---|---|---|---|
