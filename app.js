@@ -410,10 +410,8 @@
         </div>
         ${ph ? `
           <label class="field"><span>Note for the AI (optional)</span><input data-m="note" value="${esc(m.note || "")}" placeholder="e.g. 2 scoops rice, ranch dressing, half eaten"></label>
-          <div class="btn-row"><button type="button" class="btn primary" data-act="send-photo">Estimate with AI</button><button type="button" class="btn ghost" data-act="clear-photo">Remove photo</button></div>`
-        : `<p class="small muted">Shoot from above with the whole plate in frame. The AI estimates portions and macros in about a minute, and you can edit the result.</p>`}
-      </div>
-      <div class="divider"><span>or enter it yourself</span></div>`;
+          <div class="btn-row"><button type="button" class="btn primary" data-act="send-photo">Estimate with AI</button><button type="button" class="btn ghost" data-act="clear-photo">Remove photo</button></div>` : ""}
+      </div>`;
   }
 
   function mealForm() {
@@ -425,7 +423,7 @@
         <label class="field"><span>Date</span><input type="date" data-m="date" value="${esc(m.date)}"></label>
         <label class="field"><span>Meal</span><select data-m="meal">${options(["breakfast", "lunch", "dinner", "snack"], m.meal)}</select></label>
       </div>
-      ${editing ? "" : photoSection(m)}
+      ${editing ? `
       <div><div class="eyebrow" style="margin-bottom:6px">Quick add (estimates)</div>
         <div class="chips">${S.data.foods.map((f, i) => `<button type="button" class="chip" data-act="add-food" data-i="${i}">${esc(f.name)}</button>`).join("")}</div>
       </div>
@@ -435,7 +433,7 @@
         <label class="field full"><span>What else</span><input data-m="extra" value="${esc(m.extra || "")}" placeholder="e.g. stir-fry station, extra chicken"></label>
       </div>
       <p class="small muted">For exact numbers, look the item up in <a href="https://web.uri.edu/dining/whatisnetnutrition" target="_blank" rel="noopener">URI NetNutrition</a> and type them in. Quick-add values are rough averages.</p>
-      <div class="btn-row"><button class="btn primary" type="submit">${editing ? "Save changes" : "Save meal"}</button>${editing ? '<button type="button" class="btn ghost" data-act="cancel-edit">Cancel</button>' : ""}</div>`;
+      <div class="btn-row"><button class="btn primary" type="submit">Save changes</button><button type="button" class="btn ghost" data-act="cancel-edit">Cancel</button></div>` : photoSection(m)}`;
   }
 
   function bodyForm() {
@@ -746,20 +744,17 @@
         S.draft = null; go("today");
       } else if (kind === "meal") {
         const m = S.meal;
+        if (!m.editing) { f.querySelector('[data-act="send-photo"]')?.click(); return; }
         if (!m.kcal && !m.protein_g) { toast("Add calories or protein"); return; }
         const items = [...m.items, m.extra].filter(Boolean).join(", ");
         const fields = { date: m.date, meal: m.meal, items: items || undefined, kcal: +m.kcal || 0, protein_g: +m.protein_g || 0, carbs_g: +m.carbs_g || 0, fat_g: +m.fat_g || 0 };
-        if (m.editing) {
-          const orig = m.editing;
-          const next = JSON.parse(JSON.stringify({ ...orig, ...fields, ...(orig.source ? { edited: true } : {}) }));
-          const queued = S.queue.find((q) => q.obj === orig);
-          if (live() && !queued) await replaceLine(LOGS.meal, orig, next, `log: edit ${next.meal} ${next.date}`);
-          if (queued) { queued.obj = next; store.set("ritmo.queue", S.queue); }
-          S.data.nutrition[S.data.nutrition.indexOf(orig)] = next;
-          toast(live() ? "Meal updated" : "Demo mode: updated here only");
-        } else {
-          await saveEntry("meal", fields);
-        }
+        const orig = m.editing;
+        const next = JSON.parse(JSON.stringify({ ...orig, ...fields, ...(orig.source ? { edited: true } : {}) }));
+        const queued = S.queue.find((q) => q.obj === orig);
+        if (live() && !queued) await replaceLine(LOGS.meal, orig, next, `log: edit ${next.meal} ${next.date}`);
+        if (queued) { queued.obj = next; store.set("ritmo.queue", S.queue); }
+        S.data.nutrition[S.data.nutrition.indexOf(orig)] = next;
+        toast(live() ? "Meal updated" : "Demo mode: updated here only");
         S.meal = null; go("food");
       } else if (kind === "body") {
         const fd = Object.fromEntries(new FormData(f));

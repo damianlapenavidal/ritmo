@@ -299,8 +299,6 @@ tbody tr:last-child td { border-bottom: 0; }
 .photo-box { display: grid; gap: 12px; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius); background: var(--surface-2); }
 .photo-btn { width: 100%; cursor: pointer; }
 .photo-preview { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-sm); display: block; }
-.divider { display: flex; align-items: center; gap: 12px; color: var(--ink-3); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .pending { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 14px; }
 .pending img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
 .pending:not(:has(img)) { grid-template-columns: 1fr auto; }
