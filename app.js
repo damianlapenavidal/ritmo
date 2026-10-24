@@ -14,6 +14,11 @@
   const mondayOf = (iso) => { const t = new Date(iso + "T12:00:00"); const wd = (t.getDay() + 6) % 7; return addDays(iso, -wd); };
   const round = (v, step = 1) => Math.round(v / step) * step;
   const sum = (arr, k) => arr.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+  const cap = (s) => String(s ?? "").charAt(0).toUpperCase() + String(s ?? "").slice(1);
+  const phaseName = (s) => String(s ?? "").replace(/^phase-(\d+)$/i, "Phase $1");
+  const fmtDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  // <option>s with lowercase values (what gets saved) and capitalized labels
+  const options = (vals, cur) => vals.map((v) => `<option value="${esc(v)}" ${cur === v ? "selected" : ""}>${esc(cap(phaseName(v)))}</option>`).join("");
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
@@ -316,13 +321,13 @@
         ${statTile("Calories today", Math.round(nut.kcal).toLocaleString(), "kcal", tg.kcal ? `of ${tg.kcal.toLocaleString()} target` : missing ? `<a href="#settings">Add profile for targets</a>` : "", tg.kcal ? (100 * nut.kcal) / tg.kcal : null)}
         ${statTile("Protein today", Math.round(nut.protein_g), "g", tg.protein_g ? `of ${tg.protein_g} g target` : "", tg.protein_g ? (100 * nut.protein_g) / tg.protein_g : null)}
         ${statTile("Weight, 7-day avg", r.weight?.avg7_kg ?? "–", r.weight?.avg7_kg ? "kg" : "", r.weight?.change_kg_per_week != null ? `${r.weight.change_kg_per_week > 0 ? "+" : ""}${r.weight.change_kg_per_week} kg vs last week` : "Log a weigh-in")}
-        ${statTile("Sessions this week", doneWeek.length, `/ ${planned}`, `${sum(doneWeek.filter((w) => w.type !== "lift"), "duration_min")} min conditioning`, (100 * doneWeek.length) / Math.max(planned, 1))}
+        ${statTile("This week", doneWeek.length, `/ ${planned} sessions`, `${sum(doneWeek.filter((w) => w.type !== "lift"), "duration_min")} min conditioning`, (100 * doneWeek.length) / Math.max(planned, 1))}
       </div>
       <section class="card">
-        <div class="card-head"><div class="session-title"><h2>Today's session</h2><span class="pill">${esc(sess.type)}</span>${doneToday ? `<span class="pill">${icon.check} Logged</span>` : ""}</div></div>
+        <div class="card-head"><div class="session-title"><h2>Today's session</h2><span class="pill cap">${esc(sess.type)}</span>${doneToday ? `<span class="pill">${icon.check} Logged</span>` : ""}</div></div>
         ${sess.blocks?.length ? `<ul class="ex-list">${sess.blocks.map((b) => `<li><span>${esc(b.exercise)}</span><span class="dose">${esc(b.sets)} × ${esc(b.reps)}</span>${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`).join("")}</ul>` : `<p class="muted">Recovery day. A 20-30 min walk and some mobility work count.</p>`}
-        ${d.program.warmup && sess.blocks?.length ? `<p class="small muted" style="margin-top:10px">Warm-up: ${esc(d.program.warmup)}</p>` : ""}
-        <div class="btn-row" style="margin-top:12px">
+        ${d.program.warmup && sess.blocks?.length ? `<p class="small muted" style="margin-top:12px">Warm-up: ${esc(d.program.warmup)}</p>` : ""}
+        <div class="session-actions">
           ${sess.blocks?.length ? `<button class="btn primary" data-act="log-session" data-dow="${dow}">Log this session</button>` : ""}
           <button class="btn" data-act="goto-log" data-tab="meal">+ Meal</button>
           <button class="btn" data-act="goto-log" data-tab="body">+ Check-in</button>
@@ -356,14 +361,14 @@
     return `
       <div class="form-grid">
         <label class="field"><span>Date</span><input type="date" data-f="date" value="${esc(dr.date)}"></label>
-        <label class="field"><span>Type</span><select data-f="type">${["lift", "conditioning", "sport"].map((t) => `<option ${dr.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="field"><span>Type</span><select data-f="type">${options(["lift", "conditioning", "sport"], dr.type)}</select></label>
         <label class="field"><span>Session</span><input data-f="session" value="${esc(dr.session)}" placeholder="Gym A"></label>
         <label class="field"><span>Minutes</span><input type="number" inputmode="numeric" data-f="duration_min" value="${esc(dr.duration_min)}"></label>
       </div>
       <datalist id="ex-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
       <div>${dr.exercises.map((ex, i) => `
         <div class="ex-block">
-          <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px;align-items:center;min-width:0">
             <input list="ex-names" data-ex="${i}" data-f="name" value="${esc(ex.name)}" placeholder="Exercise" aria-label="Exercise name">
             <button type="button" class="icon-btn" data-act="rm-ex" data-ex="${i}" aria-label="Remove exercise">${icon.x}</button>
           </div>
@@ -405,10 +410,10 @@
     S.meal ||= newMeal();
     const m = S.meal, editing = !!m.editing;
     return `
-      ${editing ? `<div class="banner">Editing ${esc(m.meal)} on ${esc(m.date)}${m.editing.source === "photo-ai" ? " (AI estimate)" : ""}</div>` : ""}
+      ${editing ? `<div class="banner">Editing ${esc(m.meal)} from ${esc(fmtDay(m.date))}${m.editing.source === "photo-ai" ? " (AI estimate)" : ""}</div>` : ""}
       <div class="form-grid">
         <label class="field"><span>Date</span><input type="date" data-m="date" value="${esc(m.date)}"></label>
-        <label class="field"><span>Meal</span><select data-m="meal">${["breakfast", "lunch", "dinner", "snack"].map((t) => `<option ${m.meal === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="field"><span>Meal</span><select data-m="meal">${options(["breakfast", "lunch", "dinner", "snack"], m.meal)}</select></label>
       </div>
       ${editing ? "" : photoSection(m)}
       <div><div class="eyebrow" style="margin-bottom:6px">Quick add (estimates)</div>
@@ -431,7 +436,7 @@
         <label class="field"><span>Date</span><input type="date" name="date" value="${today()}"></label>
         <label class="field"><span>Weight kg</span><input type="number" inputmode="decimal" step="0.1" name="weight_kg" placeholder="${last ? last.weight_kg : ""}"></label>
         <label class="field"><span>Sleep hours</span><input type="number" inputmode="decimal" step="0.25" name="sleep_h"></label>
-        <label class="field"><span>Waist cm (optional)</span><input type="number" inputmode="decimal" step="0.5" name="waist_cm"></label>
+        <label class="field"><span>Waist cm</span><input type="number" inputmode="decimal" step="0.5" name="waist_cm" placeholder="Optional"></label>
       </div>
       ${scale("energy", "Energy (1 drained, 5 great)")}
       ${scale("soreness", "Soreness (1 none, 5 very sore)")}
@@ -444,8 +449,8 @@
     const bms = S.data.program.benchmarks || [];
     return `
       <div class="form-grid">
+        <label class="field full"><span>Test</span><select name="test">${bms.map((b) => `<option value="${esc(b.test)}" data-unit="${esc(b.unit)}">${esc(cap(b.test))} (${esc(b.unit)})</option>`).join("")}</select></label>
         <label class="field"><span>Date</span><input type="date" name="date" value="${today()}"></label>
-        <label class="field"><span>Test</span><select name="test">${bms.map((b) => `<option value="${esc(b.test)}" data-unit="${esc(b.unit)}">${esc(b.test)} (${esc(b.unit)})</option>`).join("")}</select></label>
         <label class="field"><span>Result</span><input type="number" inputmode="decimal" step="any" name="value" required></label>
       </div>
       <p class="small muted">Retest at the start, in week 6, and at each phase change, under the same conditions (warm-up, surface, time of day).</p>
@@ -460,8 +465,8 @@
     <section class="card"><div class="card-head"><h2>Strength</h2><select id="lift-pick" style="width:auto;min-height:36px" aria-label="Lift"></select></div><div id="ch-lift"></div>
       <p class="small muted">Estimated 1-rep max (Epley) from your best set each session, in ${loadUnit()}.</p></section>
     <div class="grid-2">
-      <section class="card"><div class="card-head"><h3>Sessions per week</h3></div><div id="ch-sessions"></div></section>
-      <section class="card"><div class="card-head"><h3>Conditioning minutes</h3></div><div id="ch-cond"></div></section>
+      <section class="card"><div class="card-head"><h2>Sessions per week</h2></div><div id="ch-sessions"></div></section>
+      <section class="card"><div class="card-head"><h2>Conditioning minutes</h2></div><div id="ch-cond"></div></section>
     </div>
     <section class="card"><div class="card-head"><h2>Hard sets this week</h2><span class="small muted">line = 10-set reference</span></div><div id="muscles"></div></section>
     <section class="card"><div class="card-head"><h2>Benchmarks</h2></div><div id="bench" class="table-wrap"></div></section>`;
@@ -492,20 +497,20 @@
 
     const bm = d.report?.benchmarks || {};
     const rows = Object.entries(bm);
-    $("#bench").innerHTML = rows.length ? `<table><thead><tr><th>Test</th><th class="num">First</th><th class="num">Latest</th><th></th></tr></thead><tbody>${rows.map(([n, b]) => `<tr><td>${esc(n)}</td><td class="num">${esc(b.first)} ${esc(b.unit || "")}</td><td class="num">${esc(b.latest)} ${esc(b.unit || "")}</td><td>${b.improved === true ? `<span class="pill">${icon.check} better</span>` : b.improved === false ? '<span class="pill">not yet</span>' : ""}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">Log your first benchmarks in Log → Benchmark</div>';
+    $("#bench").innerHTML = rows.length ? `<table><thead><tr><th>Test</th><th class="num">First</th><th class="num">Latest</th><th></th></tr></thead><tbody>${rows.map(([n, b]) => `<tr><td>${esc(cap(n))}</td><td class="num">${esc(b.first)} ${esc(b.unit || "")}</td><td class="num">${esc(b.latest)} ${esc(b.unit || "")}</td><td>${b.improved === true ? `<span class="pill">${icon.check} better</span>` : b.improved === false ? '<span class="pill">not yet</span>' : ""}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">Log your first benchmarks in Log → Benchmark</div>';
   }
 
   // ---- food ----
   views.food = () => {
     const iso = today(), n = dayNutrition(iso), tg = targets();
-    const cell = (k, label, unit) => `<div>${label}<b>${Math.round(n[k])}</b><span class="small muted">${tg[k] ? `/ ${tg[k]} ${unit}` : unit}</span></div>`;
+    const cell = (k, label, unit) => `<div><span class="label">${label}</span><b>${Math.round(n[k]).toLocaleString()}</b><span class="small muted">${tg[k] ? `/ ${tg[k].toLocaleString()} ${unit}` : unit}</span></div>`;
     const pend = S.pending;
     const row = (r) => {
       const idx = S.data.nutrition.indexOf(r);
       const ai = r.source === "photo-ai" || r.source === "photo-estimate";
       return `<li>
-        <span><b>${esc(r.meal)}</b>${ai ? ` <span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}<br><span class="muted small">${esc(r.items || "")}</span></span>
-        <span class="dose">${Math.round(r.kcal || 0)} kcal<br><span class="muted small">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
+        <span><b class="cap">${esc(r.meal)}</b>${ai ? ` <span class="pill">AI estimate${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}<br><span class="muted small">${esc(r.items || "")}</span></span>
+        <span class="dose">${Math.round(r.kcal || 0).toLocaleString()} kcal<br><span class="muted small">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
         ${r.ai_comment ? `<span class="note">${esc(r.ai_comment)}</span>` : ""}
         <span class="row-actions"><button class="btn small ghost" data-act="edit-meal" data-idx="${idx}">Edit</button><button class="btn small ghost" data-act="delete-meal" data-idx="${idx}">Delete</button></span>
       </li>`;
@@ -513,19 +518,19 @@
     return `<h1>Food</h1>
       <section class="card"><div class="card-head"><h2>Today</h2><button class="btn small" data-act="goto-log" data-tab="meal">${icon.camera} Meal</button></div>
         <div class="totals">${cell("kcal", "Calories", "kcal")}${cell("protein_g", "Protein", "g")}${cell("carbs_g", "Carbs", "g")}${cell("fat_g", "Fat", "g")}</div>
-        ${pend.length ? `<div class="stack" style="margin-top:12px">${pend.map((p) => `<div class="pending ${p.error ? "is-error" : ""}">
+        ${pend.length ? `<div class="stack pending-list">${pend.map((p) => `<div class="pending ${p.error ? "is-error" : ""}">
             ${p.thumb ? `<img src="${p.thumb}" alt="">` : ""}
-            <div><b>${esc(p.meal)} photo</b><br><span class="small ${p.error ? "" : "muted"}">${p.error ? `${icon.warn} Couldn't estimate: ${esc(p.error)}` : "Estimating… usually about a minute"}</span></div>
+            <div><b>${esc(cap(p.meal))} photo</b><br><span class="small ${p.error ? "" : "muted"}">${p.error ? `${icon.warn} Couldn't estimate: ${esc(p.error)}` : "Estimating… usually about a minute"}</span></div>
             <button class="icon-btn" data-act="dismiss-pending" data-id="${esc(p.id)}" aria-label="Hide this photo">${icon.x}</button>
           </div>`).join("")}</div>` : ""}
-        ${n.rows.length ? `<ul class="ex-list meal-list" style="margin-top:12px">${n.rows.map(row).join("")}</ul>` : pend.length ? "" : '<div class="empty">Nothing logged today</div>'}
+        ${n.rows.length ? `<ul class="ex-list meal-list">${n.rows.map(row).join("")}</ul>` : pend.length ? "" : '<div class="empty">Nothing logged today</div>'}
       </section>
       <div class="grid-2">
-        <section class="card"><div class="card-head"><h3>Calories, last 14 days</h3></div><div id="ch-kcal"></div><div class="legend"><span><i class="dash"></i>Target</span></div></section>
-        <section class="card"><div class="card-head"><h3>Protein, last 14 days</h3></div><div id="ch-protein"></div><div class="legend"><span><i class="dash"></i>Target</span></div></section>
+        <section class="card"><div class="card-head"><h2>Calories, last 14 days</h2></div><div id="ch-kcal"></div><div class="legend"><span><i class="dash"></i>Target</span></div></section>
+        <section class="card"><div class="card-head"><h2>Protein, last 14 days</h2></div><div id="ch-protein"></div><div class="legend"><span><i class="dash"></i>Target</span></div></section>
       </div>
       <section class="card"><h2>Dining hall playbook</h2>
-        <ul class="small" style="padding-left:18px;margin:8px 0 0">
+        <ul class="small" style="padding-left:18px;margin:12px 0 0">
           <li>Build every plate around a palm or two of protein first (grill, eggs, Greek yogurt, fish), then add carbs, then vegetables.</li>
           <li>Training days: an extra fist of rice, pasta, potatoes or fruit at the meal before or after the session.</li>
           <li>Keep a protein backup (Greek yogurt, milk, or a whey shake) for days the menu is thin.</li>
@@ -536,7 +541,7 @@
     const iso = today(), tg = targets();
     const days = Array.from({ length: 14 }, (_, i) => addDays(iso, i - 13));
     const lab = (s) => new Date(s + "T12:00:00").toLocaleDateString(undefined, { weekday: "narrow" });
-    Charts.bars($("#ch-kcal"), { label: "Calories per day", color: "var(--series-2)", target: tg.kcal, height: 180, bars: days.map((s) => ({ label: lab(s), title: Charts.fmtDate(s), value: Math.round(dayNutrition(s).kcal) })), yFmt: (v) => `${Math.round(v)} kcal` });
+    Charts.bars($("#ch-kcal"), { label: "Calories per day", color: "var(--series-2)", target: tg.kcal, height: 180, bars: days.map((s) => ({ label: lab(s), title: Charts.fmtDate(s), value: Math.round(dayNutrition(s).kcal) })), yFmt: (v) => `${Math.round(v).toLocaleString()} kcal` });
     Charts.bars($("#ch-protein"), { label: "Protein per day", color: "var(--series-1)", target: tg.protein_g, height: 180, bars: days.map((s) => ({ label: lab(s), title: Charts.fmtDate(s), value: Math.round(dayNutrition(s).protein_g) })), yFmt: (v) => `${Math.round(v)} g` });
   }
 
@@ -557,14 +562,14 @@
     const p = S.data.program, r = S.data.report || {};
     const dow = DAYS[new Date(today() + "T12:00:00").getDay()];
     const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    return `<div><div class="eyebrow">${esc(p.phase || "")}${r.phase_week ? ` · week ${r.phase_week} of ${p.weeks}` : ""}</div><h1>${esc(p.title || "Plan")}</h1></div>
+    return `<div><div class="eyebrow">${esc(phaseName(p.phase || ""))}${r.phase_week ? ` · week ${r.phase_week} of ${p.weeks}` : ""}</div><h1>${esc(p.title || "Plan")}</h1></div>
       ${r.phase_week && p.intensity_by_week?.[r.phase_week] ? `<div class="banner">This week: ${esc(p.intensity_by_week[r.phase_week])}</div>` : ""}
       <section class="card"><h2>The week</h2>
-        <ul class="ex-list" style="margin-top:8px">${order.map((k) => { const s = p.week_template?.[k] || {}; return `<li><span><b>${k}</b>${k === dow ? ' <span class="pill">today</span>' : ""}<br>${esc(s.name || "Rest")}</span><span class="dose">${esc(s.type || "")}</span>${s.blocks?.length ? `<span class="note">${s.blocks.map((b) => esc(b.exercise)).join(" · ")}</span>` : ""}</li>`; }).join("")}</ul>
+        <ul class="ex-list" style="margin-top:12px">${order.map((k) => { const s = p.week_template?.[k] || {}; return `<li><span><b>${k}</b>${k === dow ? ' <span class="pill">today</span>' : ""}<br>${esc(s.name || "Rest")}</span><span class="dose muted cap">${esc(s.type || "")}</span>${s.blocks?.length ? `<span class="note">${s.blocks.map((b) => esc(b.exercise)).join(" · ")}</span>` : ""}</li>`; }).join("")}</ul>
       </section>
-      <section class="card"><div class="card-head"><h2>Weekly report</h2><span class="small muted">${esc(S.data.weekly?.name || "")}</span></div>
+      <section class="card"><div class="card-head"><h2>Weekly report</h2><span class="small muted">${esc((S.data.weekly?.name || "").replace(/\.md$/, ""))}</span></div>
         <div class="md">${S.data.weekly ? md(S.data.weekly.text) : '<div class="empty">The first report appears the Monday after you start logging.</div>'}</div></section>
-      <section class="card"><h2>Benchmarks</h2><ul class="ex-list" style="margin-top:8px">${(p.benchmarks || []).map((b) => `<li><span>${esc(b.test)}</span><span class="dose">${esc(b.unit)} · ${b.better} is better</span>${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`).join("")}</ul></section>`;
+      <section class="card"><h2>Benchmarks</h2><ul class="ex-list" style="margin-top:12px">${(p.benchmarks || []).map((b) => `<li><span>${esc(b.test)}</span><span class="dose">${esc(b.unit)} · ${esc(b.better)} is better</span>${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`).join("")}</ul></section>`;
   };
 
   // ---- settings ----
@@ -586,12 +591,12 @@
         <h2>Profile</h2>
         <p class="small muted">Used to calculate calorie and protein targets. Saved to data/profile.json in your repo.</p>
         <div class="form-grid">
-          <label class="field"><span>Sex</span><select name="sex"><option value="">–</option>${["male", "female"].map((s) => `<option ${p.sex === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+          <label class="field"><span>Sex</span><select name="sex"><option value="">–</option>${options(["male", "female"], p.sex)}</select></label>
           <label class="field"><span>Birth year</span><input type="number" name="birth_year" value="${esc(p.birth_year || "")}"></label>
           <label class="field"><span>Height cm</span><input type="number" step="0.5" name="height_cm" value="${esc(p.height_cm || "")}"></label>
           <label class="field"><span>Start weight kg</span><input type="number" step="0.1" name="start_weight_kg" value="${esc(p.start_weight_kg || "")}"></label>
-          <label class="field"><span>Gym load unit</span><select name="load">${["lb", "kg"].map((s) => `<option ${loadUnit() === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
-          <label class="field"><span>Phase</span><select name="phase">${["phase-1", "phase-2"].map((s) => `<option ${p.phase?.current === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+          <label class="field"><span>Gym load unit</span><select name="load"><option value="lb" ${loadUnit() === "lb" ? "selected" : ""}>lb</option><option value="kg" ${loadUnit() === "kg" ? "selected" : ""}>kg</option></select></label>
+          <label class="field"><span>Phase</span><select name="phase">${options(["phase-1", "phase-2"], p.phase?.current)}</select></label>
           <label class="field full"><span>Phase start date</span><input type="date" name="start_date" value="${esc(p.phase?.start_date || "")}"></label>
         </div>
         <div class="btn-row"><button class="btn primary" type="submit">Save profile</button></div>
@@ -604,7 +609,7 @@
     const v = S.view;
     document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-current", t.dataset.view === v ? "page" : "false"));
     const r = S.data?.report;
-    $("#phase-label").textContent = r ? `${r.phase}${r.phase_week ? ` · wk ${r.phase_week}` : ""}${live() ? "" : " · demo"}` : "";
+    $("#phase-label").textContent = r ? `${phaseName(r.phase)}${r.phase_week ? ` · wk ${r.phase_week}` : ""}${live() ? "" : " · demo"}` : "";
     $("#view").innerHTML = S.data || v === "settings" ? views[v]() : '<div class="empty">Loading…</div>';
     if (S.data) after[v]?.(); // charts need data; skip while loading
   }
