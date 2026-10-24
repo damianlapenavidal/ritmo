@@ -395,7 +395,7 @@
       </div>
       <button type="button" class="btn" data-act="add-ex">+ Exercise</button>
       <label class="field"><span>Notes</span><textarea data-f="notes" placeholder="How it felt, pain, distance, intervals...">${esc(dr.notes)}</textarea></label>
-      <p class="small muted">RPE = effort out of 10 (10 = nothing left, 7 = about 3 reps left). Bodyweight moves: leave load empty.</p>
+      <p class="small muted">RPE = effort out of 10</p>
       <div class="btn-row"><button class="btn primary" type="submit">Save workout</button><button type="button" class="btn ghost" data-act="reset-draft">Clear</button></div>`;
   }
 
