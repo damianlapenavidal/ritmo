@@ -35,6 +35,10 @@
   ],
   "food": {
     "setting": "University dining hall (URI)",
+    "dining_halls": [
+      "Butterfield",
+      "Mainfare"
+    ],
     "nutrition_lookup": "URI NetNutrition",
     "preferences": [],
     "avoid": []
