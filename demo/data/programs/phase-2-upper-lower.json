@@ -36,7 +36,7 @@
     6,
     12
   ],
-  "progression": "Double progression: work up to the top of the rep range at or below the week's RPE, then add step_lb. Miss the bottom of the range twice in a row: drop about 10%.",
+  "progression": "Build up to the top of the rep range on every set at or below the week's RPE, then add weight (about 5 lb upper body, 10 lb lower body). Miss the bottom of the range two sessions in a row: drop about 10%.",
   "warmup": "8-10 min: easy bike or jog, dynamic mobility, then 1-2 warm-up sets at 60-75% of the first exercise's working weight",
   "week_template": {
     "Mon": {
