@@ -12,7 +12,8 @@
   const localISO = (dt = new Date()) => dt.toLocaleDateString("en-CA");
   const addDays = (iso, n) => { const t = new Date(iso + "T12:00:00"); t.setDate(t.getDate() + n); return localISO(t); };
   const mondayOf = (iso) => { const t = new Date(iso + "T12:00:00"); const wd = (t.getDay() + 6) % 7; return addDays(iso, -wd); };
-  const round = (v, step = 1) => Math.round(v / step) * step;
+  // rounds to a step without float noise (30 lb -> 13.6 kg, not 13.600000000000001)
+  const round = (v, step = 1) => { const r = Math.round(v / step) * step, d = (String(step).split(".")[1] || "").length; return d ? +r.toFixed(d) : r; };
   const sum = (arr, k) => arr.reduce((a, r) => a + (Number(r[k]) || 0), 0);
   const cap = (s) => String(s ?? "").charAt(0).toUpperCase() + String(s ?? "").slice(1);
   const phaseName = (s) => String(s ?? "").replace(/^phase-(\d+)$/i, "Phase $1");
@@ -34,6 +35,11 @@
   };
   icon.chat = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg>';
   icon.gallery = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg>';
+  icon.swap = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/></svg>';
+  icon.back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>';
+  icon.search = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>';
+  icon.target = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>';
+  icon.chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
   // The coach is a Claude Project; the app can only open it. Weekly check-ins run as a scheduled task, so this is for questions.
   // claude.ai/project/* isn't a universal link (it opens Safari), so the button uses the claude:// scheme to reach the iPhone app.
   const coachUrl = (link) => { try { const u = new URL(String(link || "").trim()); return u.protocol === "https:" && u.hostname === "claude.ai" && /^\/project\/[\w-]+\/?$/.test(u.pathname) ? `https://claude.ai${u.pathname.replace(/\/$/, "")}` : null; } catch { return null; } };
@@ -58,6 +64,8 @@
     pending: store.get("ritmo.pending", []), // photo meals waiting for the AI estimate
     photo: null,
     loadedAt: 0,
+    sheet: [], // bottom-sheet stack: exercise details, exercise picker, program preview
+    lib: null, // exercise library (library/exercises.json), loaded on first use
   };
   const savePending = () => store.set("ritmo.pending", S.pending);
   const live = () => !S.cfg.demo && S.cfg.token && S.cfg.owner && S.cfg.repo;
@@ -117,6 +125,26 @@
     throw new Error("Could not save after 3 tries");
   }
 
+  // Write several files as ONE commit (Git Data API, same Contents permission), so a plan switch never lands half-done.
+  async function commitFiles(files, message) {
+    const git = `https://api.github.com/repos/${encodeURIComponent(S.cfg.owner)}/${encodeURIComponent(S.cfg.repo)}/git`;
+    const call = async (url, method = "GET", body) => {
+      const r = await fetch(url, { method, headers: { ...headers("application/vnd.github+json"), ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
+      if (!r.ok) { const e = new Error(`GitHub ${r.status}`); e.status = r.status; throw e; }
+      return r.json();
+    };
+    const branch = encodeURIComponent(S.cfg.branch);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const head = (await call(`${git}/ref/heads/${branch}`)).object.sha;
+      const base = (await call(`${git}/commits/${head}`)).tree.sha;
+      const tree = await call(`${git}/trees`, "POST", { base_tree: base, tree: files.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.text })) });
+      const commit = await call(`${git}/commits`, "POST", { message, tree: tree.sha, parents: [head] });
+      try { return await call(`${git}/refs/heads/${branch}`, "PATCH", { sha: commit.sha }); }
+      catch (e) { if (e.status !== 422 && e.status !== 409) throw e; } // someone pushed in between: rebuild on the new head
+    }
+    throw new Error("Could not save after 3 tries");
+  }
+
   const LOGS = { workout: "logs/workouts.jsonl", meal: "logs/nutrition.jsonl", body: "logs/body.jsonl", test: "logs/tests.jsonl" };
   const KEYS = { workout: "workouts", meal: "nutrition", body: "body", test: "tests" };
 
@@ -150,13 +178,13 @@
   }
 
   async function loadAll() {
-    const [profile, program, exercises, w, n, b, t, report, weekly] = await Promise.all([
+    const [profile, program, exercises, w, n, b, t, report, weekly, programs] = await Promise.all([
       readJSON("data/profile.json", {}), readJSON("data/program.json", {}), readJSON("data/exercises.json", {}),
       readText("logs/workouts.jsonl"), readText("logs/nutrition.jsonl"), readText("logs/body.jsonl"), readText("logs/tests.jsonl"),
-      readJSON("reports/latest.json", null), latestWeekly(),
+      readJSON("reports/latest.json", null), latestWeekly(), readJSON("data/programs/index.json", null).catch(() => null),
     ]);
     delete exercises._note;
-    S.data = { profile, program, exercises, workouts: parseJsonl(w), nutrition: parseJsonl(n), body: parseJsonl(b), tests: parseJsonl(t), report, weekly };
+    S.data = { profile, program, exercises, workouts: parseJsonl(w), nutrition: parseJsonl(n), body: parseJsonl(b), tests: parseJsonl(t), report, weekly, programs };
     for (const q of S.queue) S.data[KEYS[q.kind]].push(q.obj); // show unsynced entries too
     S.loadedAt = Date.now();
     resolvePending(await readJSON("inbox/errors.json", {}).catch(() => ({})));
@@ -299,11 +327,67 @@
     return Array.from({ length: n }, (_, i) => addDays(end, -7 * (n - 1 - i)));
   }
 
+  // ---------- exercise library + progression ----------
+  const GROUPS = ["chest", "back", "shoulders", "arms", "quads", "hamstrings", "glutes", "calves", "adductors", "core"];
+  let libPromise = null;
+  // library/exercises.json ships with the app (Free Exercise DB, public domain; see library/README.md). ~160 KB gzipped.
+  function ensureLibrary() {
+    if (S.lib) return Promise.resolve(S.lib);
+    libPromise ||= fetch("library/exercises.json").then((r) => { if (!r.ok) throw new Error(`library ${r.status}`); return r.json(); }).then((doc) => {
+      doc.byId = new Map(doc.exercises.map((e) => [e.id, e]));
+      doc.byName = new Map(doc.exercises.map((e) => [e.name.toLowerCase(), e]));
+      return (S.lib = doc);
+    }).catch((e) => { libPromise = null; throw e; });
+    return libPromise;
+  }
+  const libEntry = (ref, name) => (ref && S.lib?.byId.get(ref)) || (name && S.lib?.byName.get(String(name).toLowerCase())) || null;
+  const imgUrl = (path) => (S.lib ? S.lib.image_base + String(path).split("/").map(encodeURIComponent).join("/") : "");
+  // Coach metadata (data/exercises.json); for a library pick, a best guess from the library entry.
+  function exInfo(name, ref) {
+    const mine = S.data.exercises[name];
+    if (mine) return mine;
+    const lib = libEntry(ref, name);
+    if (!lib) return { muscles: [], step_lb: 5, alternatives: [], cues: [] };
+    const lower = lib.groups.some((g) => ["quads", "hamstrings", "glutes"].includes(g));
+    return { muscles: lib.groups, ref: lib.id, step_lb: lib.equipment === "body only" ? 0 : lib.equipment === "barbell" && lower ? 10 : 5, per_hand: lib.equipment === "dumbbell", alternatives: [], cues: [] };
+  }
+  // Phase week from the profile's start date (same rule as analyze.py), so it's right even before the report refreshes.
+  function phaseWeek() {
+    const start = S.data.profile?.phase?.start_date;
+    if (!start) return S.data.report?.phase_week || null;
+    return Math.floor(Math.round((new Date(today() + "T12:00:00") - new Date(start + "T12:00:00")) / 864e5) / 7) + 1;
+  }
+  function weekCtx() {
+    const p = S.data.program, wk = phaseWeek(), rpes = p.rpe_by_week || {};
+    const keys = Object.keys(rpes).map(Number).sort((a, b) => a - b);
+    const k = keys.filter((x) => wk && x <= wk).pop() ?? keys[0];
+    return { week: wk, targetRpe: k != null ? +rpes[String(k)] : 7, deload: !!wk && (p.deload_weeks || []).includes(wk) };
+  }
+  function planReps(name) {
+    for (const day of Object.values(S.data.program.week_template || {})) for (const b of day.blocks || []) if (b.exercise === name) return b.reps;
+    return null;
+  }
+  function suggestFor(name, reps, ref) {
+    if (!window.Progression || !name) return null;
+    const ctx = weekCtx();
+    return Progression.suggest({ name, reps: reps ?? planReps(name) ?? "8-12", info: exInfo(name, ref), workouts: S.data.workouts, targetRpe: ctx.targetRpe, deload: ctx.deload, unit: loadUnit() });
+  }
+
   // ---------- views ----------
   const views = {};
 
   function statTile(label, value, unit, sub, pct) {
     return `<div class="card stat"><div class="label">${esc(label)}</div><div class="value">${value}${unit ? `<small>${esc(unit)}</small>` : ""}</div>${sub ? `<div class="sub">${sub}</div>` : ""}${pct != null ? `<div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><i style="width:${Math.min(100, pct)}%"></i></div>` : ""}</div>`;
+  }
+
+  // One planned block: the name opens the exercise sheet; "Last … · Today …" comes from the progression rules.
+  function sessionRow(b) {
+    const known = !!S.data.exercises[b.exercise];
+    const sg = known ? suggestFor(b.exercise, b.reps) : null;
+    const name = known ? `<span><button type="button" class="ex-link" data-act="ex-info" data-name="${esc(b.exercise)}">${esc(b.exercise)}</button></span>` : `<span>${esc(b.exercise)}</span>`;
+    const next = sg?.short && sg.kind !== "first" ? `<b>Today ${esc(sg.short)}</b>` : "";
+    const prog = sg?.last ? `<span class="prog">Last ${esc(sg.last.text)}${next ? ` · ${next}` : ""}</span>` : "";
+    return `<li${`${b.sets} × ${b.reps}`.length > 14 ? ' class="stacked"' : ""}>${name}<span class="dose">${esc(b.sets)} × ${esc(b.reps)}</span>${prog}${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`;
   }
 
   views.today = () => {
@@ -329,7 +413,7 @@
       </div>
       <section class="card">
         <div class="card-head"><div class="session-title"><h2>Today's session</h2><span class="pill cap">${esc(sess.type)}</span>${doneToday ? `<span class="pill">${icon.check} Logged</span>` : ""}</div></div>
-        ${sess.blocks?.length ? `<ul class="ex-list">${sess.blocks.map((b) => `<li${`${b.sets} × ${b.reps}`.length > 14 ? ' class="stacked"' : ""}><span>${esc(b.exercise)}</span><span class="dose">${esc(b.sets)} × ${esc(b.reps)}</span>${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`).join("")}</ul>` : `<p class="muted">Recovery day. A 20-30 min walk and some mobility work count.</p>`}
+        ${sess.blocks?.length ? `<ul class="ex-list">${sess.blocks.map(sessionRow).join("")}</ul>` : `<p class="muted">Recovery day. A 20-30 min walk and some mobility work count.</p>`}
         ${d.program.warmup && sess.blocks?.length ? `<p class="small muted" style="margin-top:12px">Warm-up: ${esc(d.program.warmup)}</p>` : ""}
         <div class="session-actions">
           ${sess.blocks?.length ? `<button class="btn primary" data-act="log-session" data-dow="${dow}">Log this session</button>` : ""}
@@ -348,11 +432,31 @@
   };
 
   // ---- log ----
+  // Sets prefilled with today's suggested load ("auto" until you type over it); reps stay empty with the target as placeholder.
+  function makeSets(n, name, reps, ref) {
+    const sg = suggestFor(name, reps, ref);
+    return Array.from({ length: Math.max(1, n) }, () => ({ reps: "", load: sg?.load ?? "", rpe: "", auto: sg?.load != null }));
+  }
   function newDraft(dow) {
     const tpl = dow ? S.data.program.week_template?.[dow] : null;
     const exNames = new Set(Object.keys(S.data.exercises));
-    const exercises = (tpl?.blocks || []).filter((b) => exNames.has(b.exercise)).map((b) => ({ name: b.exercise, sets: Array.from({ length: +b.sets || 3 }, () => ({ reps: "", load: "", rpe: "" })) }));
-    return { date: today(), type: tpl?.type === "conditioning" ? "conditioning" : "lift", session: tpl?.name || "", duration_min: "", notes: "", exercises: exercises.length ? exercises : tpl?.type === "conditioning" ? [] : [{ name: "", sets: [{ reps: "", load: "", rpe: "" }] }] };
+    const exercises = (tpl?.blocks || []).filter((b) => exNames.has(b.exercise)).map((b) => ({ name: b.exercise, planned: true, planReps: b.reps, planSets: +b.sets || 3, sets: makeSets(+b.sets || 3, b.exercise, b.reps) }));
+    return { date: today(), type: tpl?.type === "conditioning" ? "conditioning" : "lift", session: tpl?.name || "", duration_min: "", notes: "", exercises };
+  }
+  function addExercise(name, ref) {
+    const mine = !!S.data.exercises[name], lib = mine ? null : libEntry(ref, name);
+    const reps = planReps(name) || "8-12";
+    S.draft.exercises.push({ name, ref: lib?.id, muscles: lib?.groups, planReps: reps, planSets: 3, sets: makeSets(3, name, reps, lib?.id) });
+  }
+  // Swap keeps the slot (sets × reps) and anything you already typed; only untouched suggested loads are recalculated.
+  function swapExercise(i, name, ref) {
+    const ex = S.draft.exercises[i];
+    if (!ex || ex.name === name) return;
+    const mine = !!S.data.exercises[name], lib = mine ? null : libEntry(ref, name);
+    if (ex.planned) ex.swappedFrom = ex.swappedFrom === name ? undefined : ex.swappedFrom || ex.name;
+    Object.assign(ex, { name, ref: lib?.id, muscles: lib?.groups });
+    const sg = suggestFor(name, ex.planReps, lib?.id);
+    for (const st of ex.sets) if (st.auto || st.load === "") Object.assign(st, { load: sg?.load ?? "", auto: sg?.load != null });
   }
   const newMeal = () => ({ date: today(), meal: guessMeal(), kcal: "", protein_g: "", carbs_g: "", fat_g: "" });
   // Meal windows come from profile.json -> food.meal_times ("HH:MM-HH:MM"). Inside a window = that meal;
@@ -376,8 +480,33 @@
 
   function workoutForm() {
     S.draft ||= newDraft();
-    const dr = S.draft, u = loadUnit();
-    const names = Object.keys(S.data.exercises).sort();
+    const dr = S.draft, u = loadUnit(), ctx = weekCtx();
+    const block = (ex, i) => {
+      const sg = suggestFor(ex.name, ex.planReps, ex.ref);
+      const range = window.Progression?.parseReps(ex.planReps);
+      const repsHint = range ? (range.lo === range.hi ? String(range.hi) : `${range.lo}-${range.hi}`) : "";
+      const meta = [ex.planReps ? `Plan ${esc(ex.planSets ?? ex.sets.length)} × ${esc(ex.planReps)}` : "", sg?.last ? `Last ${esc(sg.last.text)}` : ""].filter(Boolean).join(" · ");
+      return `
+        <div class="ex-block">
+          <div class="ex-head">
+            <button type="button" class="ex-link ex-title" data-act="ex-info" data-name="${esc(ex.name)}" data-ref="${esc(ex.ref || "")}" data-ex="${i}">${esc(ex.name)}</button>
+            <button type="button" class="btn small ghost" data-act="swap" data-ex="${i}">${icon.swap}Swap</button>
+            <button type="button" class="icon-btn" data-act="rm-ex" data-ex="${i}" aria-label="Remove ${esc(ex.name)}">${icon.x}</button>
+          </div>
+          ${ex.swappedFrom ? `<div class="small muted ex-meta">${icon.swap} In place of ${esc(ex.swappedFrom)}</div>` : ""}
+          ${meta ? `<div class="small muted ex-meta">${meta}</div>` : ""}
+          ${sg?.text ? `<div class="suggest">${icon.target}<span>${esc(sg.text)}</span></div>` : ""}
+          <div class="set-row set-head"><span>#</span><span>Reps</span><span>${u}</span><span>RPE</span><span></span></div>
+          ${ex.sets.map((st, j) => `<div class="set-row">
+            <span class="muted small">${j + 1}</span>
+            <input type="number" inputmode="numeric" data-ex="${i}" data-set="${j}" data-f="reps" value="${esc(st.reps)}" placeholder="${esc(repsHint)}" aria-label="Reps set ${j + 1}">
+            <input type="number" inputmode="decimal" step="any" data-ex="${i}" data-set="${j}" data-f="load" value="${esc(st.load)}" class="${st.auto ? "is-auto" : ""}" aria-label="Load set ${j + 1}${st.auto ? ", suggested" : ""}">
+            <input type="number" inputmode="decimal" step="0.5" min="1" max="10" data-ex="${i}" data-set="${j}" data-f="rpe" value="${esc(st.rpe)}" placeholder="${esc(ctx.targetRpe)}" aria-label="RPE set ${j + 1}">
+            <button type="button" class="icon-btn" data-act="rm-set" data-ex="${i}" data-set="${j}" aria-label="Remove set">${icon.x}</button>
+          </div>`).join("")}
+          <button type="button" class="btn small ghost" style="margin-top:8px" data-act="add-set" data-ex="${i}">+ Set (copies last)</button>
+        </div>`;
+    };
     return `
       <div class="form-grid">
         <label class="field"><span>Date</span><input type="date" data-f="date" value="${esc(dr.date)}"></label>
@@ -385,27 +514,10 @@
         <label class="field"><span>Session</span><input data-f="session" value="${esc(dr.session)}" placeholder="Gym A"></label>
         <label class="field"><span>Minutes</span><input type="number" inputmode="numeric" data-f="duration_min" value="${esc(dr.duration_min)}"></label>
       </div>
-      <datalist id="ex-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
-      <div>${dr.exercises.map((ex, i) => `
-        <div class="ex-block">
-          <div style="display:flex;gap:8px;align-items:center;min-width:0">
-            <input list="ex-names" data-ex="${i}" data-f="name" value="${esc(ex.name)}" placeholder="Exercise" aria-label="Exercise name">
-            <button type="button" class="icon-btn" data-act="rm-ex" data-ex="${i}" aria-label="Remove exercise">${icon.x}</button>
-          </div>
-          <div class="set-row set-head"><span>#</span><span>Reps</span><span>${u}</span><span>RPE</span><span></span></div>
-          ${ex.sets.map((st, j) => `<div class="set-row">
-            <span class="muted small">${j + 1}</span>
-            <input type="number" inputmode="numeric" data-ex="${i}" data-set="${j}" data-f="reps" value="${esc(st.reps)}" aria-label="Reps set ${j + 1}">
-            <input type="number" inputmode="decimal" step="any" data-ex="${i}" data-set="${j}" data-f="load" value="${esc(st.load)}" aria-label="Load set ${j + 1}">
-            <input type="number" inputmode="decimal" step="0.5" min="1" max="10" data-ex="${i}" data-set="${j}" data-f="rpe" value="${esc(st.rpe)}" aria-label="RPE set ${j + 1}">
-            <button type="button" class="icon-btn" data-act="rm-set" data-ex="${i}" data-set="${j}" aria-label="Remove set">${icon.x}</button>
-          </div>`).join("")}
-          <button type="button" class="btn small ghost" style="margin-top:8px" data-act="add-set" data-ex="${i}">+ Set (copies last)</button>
-        </div>`).join("")}
-      </div>
-      <button type="button" class="btn" data-act="add-ex">+ Exercise</button>
+      ${dr.exercises.length ? `<div>${dr.exercises.map(block).join("")}</div>` : ""}
+      <button type="button" class="btn ${dr.exercises.length || dr.type !== "lift" ? "" : "primary"}" data-act="add-ex">+ Exercise</button>
       <label class="field"><span>Notes</span><textarea data-f="notes" placeholder="How it felt, pain, distance, intervals...">${esc(dr.notes)}</textarea></label>
-      <p class="small muted">RPE = effort out of 10</p>
+      <p class="small muted">RPE = effort out of 10${ctx.week > 0 ? `. Target this week: about ${esc(ctx.targetRpe)}${ctx.deload ? " (deload)" : ""}` : ""}. Green loads are suggestions from your last session: type over them if today feels different.</p>
       <div class="btn-row"><button class="btn primary" type="submit">Save workout</button><button type="button" class="btn ghost" data-act="reset-draft">Clear</button></div>`;
   }
 
@@ -586,11 +698,22 @@
     const p = S.data.program, r = S.data.report || {};
     const dow = DAYS[new Date(today() + "T12:00:00").getDay()];
     const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    return `<div><div class="eyebrow">${esc(phaseName(p.phase || ""))}${r.phase_week ? ` · week ${r.phase_week} of ${p.weeks}` : ""}</div><h1>${esc(p.title || "Plan")}</h1></div>
-      ${r.phase_week && p.intensity_by_week?.[r.phase_week] ? `<div class="banner">This week: ${esc(p.intensity_by_week[r.phase_week])}</div>` : ""}
+    const wk = phaseWeek();
+    const rpes = Object.entries(p.rpe_by_week || {});
+    const progs = S.data.programs?.programs || [];
+    const activeId = p.id || S.data.programs?.active;
+    return `<div><div class="eyebrow">${esc(phaseName(p.phase || ""))}${wk > 0 ? ` · week ${wk} of ${p.weeks}` : wk != null && wk <= 0 ? ` · starts ${esc(fmtDay(S.data.profile.phase.start_date))}` : ""}</div><h1>${esc(p.title || "Plan")}</h1></div>
+      ${wk > 0 && p.intensity_by_week?.[wk] ? `<div class="banner">This week: ${esc(p.intensity_by_week[wk])}</div>` : ""}
       <section class="card"><h2>The week</h2>
         <ul class="ex-list" style="margin-top:12px">${order.map((k) => { const s = p.week_template?.[k] || {}; return `<li><span><b>${k}</b>${k === dow ? ' <span class="pill">today</span>' : ""}<br>${esc(s.name || "Rest")}</span><span class="dose muted cap">${esc(s.type || "")}</span>${s.blocks?.length ? `<span class="note">${s.blocks.map((b) => esc(b.exercise)).join(" · ")}</span>` : ""}</li>`; }).join("")}</ul>
+        ${p.progression || rpes.length ? `<div class="plan-rules small">
+          ${rpes.length ? `<div class="rpe-steps" aria-label="Target RPE by week">${rpes.map(([w, v]) => `<span class="${+w === wk ? "is-now" : ""}"><b>${esc(v)}</b>wk ${esc(w)}${(p.deload_weeks || []).includes(+w) ? " · deload" : ""}</span>`).join("")}</div>` : ""}
+          ${p.progression ? `<p class="muted">${esc(p.progression)}</p>` : ""}</div>` : ""}
       </section>
+      ${progs.length ? `<section class="card"><div class="card-head"><h2>Programs</h2><span class="small muted">${progs.length} in your library</span></div>
+        <ul class="prog-list">${progs.map((m) => `<li><button type="button" class="prog-row" data-act="program" data-id="${esc(m.id)}">
+          <span><b>${esc(m.title)}</b>${m.id === activeId ? ` <span class="pill">${icon.check} Active</span>` : ""}<br><span class="small muted">${esc(m.days || "")}${m.weeks ? ` · ${esc(m.weeks)} weeks` : ""}</span>${m.summary ? `<span class="small prog-sum">${esc(m.summary)}</span>` : ""}</span>${icon.chevron}</button></li>`).join("")}</ul>
+        <p class="small muted" style="margin:12px 0 0">Your coach can switch these at a check-in, or you can here. Your logs stay the same either way.</p></section>` : ""}
       <section class="card"><div class="card-head"><h2>Weekly report</h2><span class="small muted">${esc((S.data.weekly?.name || "").replace(/\.md$/, ""))}</span></div>
         <div class="md">${S.data.weekly ? md(S.data.weekly.text) : '<div class="empty">The first report appears the Monday after you start logging.</div>'}</div></section>
       <section class="card"><h2>Benchmarks</h2><ul class="ex-list" style="margin-top:12px">${(p.benchmarks || []).map((b) => `<li><span>${esc(b.test)}</span><span class="dose">${esc(b.unit)} · ${esc(b.better)} is better</span>${b.note ? `<span class="note">${esc(b.note)}</span>` : ""}</li>`).join("")}</ul></section>`;
@@ -629,6 +752,147 @@
       </form>` : ""}`;
   };
 
+  // ---------- sheets (exercise details, picker, program preview) ----------
+  const sheets = {};
+  let sheetOpener = null;
+  const topSheet = () => S.sheet[S.sheet.length - 1];
+  function openSheet(s, { push = false, opener } = {}) {
+    if (!push) { S.sheet = []; sheetOpener = opener || document.activeElement; }
+    S.sheet.push(s); renderSheet();
+  }
+  function closeSheet(all = true) {
+    if (all) S.sheet = []; else S.sheet.pop();
+    renderSheet();
+    if (!S.sheet.length && sheetOpener?.isConnected) sheetOpener.focus({ preventScroll: true });
+  }
+  function renderSheet() {
+    const root = $("#sheet-root"), s = topSheet();
+    document.documentElement.classList.toggle("sheet-open", !!s);
+    if (!s || !S.data) { root.innerHTML = ""; return; }
+    const v = sheets[s.type](s);
+    root.innerHTML = `<div class="sheet-backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
+      <div class="sheet-head"><div class="sheet-bar">
+        ${S.sheet.length > 1 ? `<button type="button" class="icon-btn" data-act="sheet-back" aria-label="Back">${icon.back}</button>` : ""}
+        <h2 id="sheet-title">${esc(v.title)}</h2>
+        <button type="button" class="icon-btn" data-act="sheet-close" aria-label="Close">${icon.x}</button></div>
+        ${v.controls || ""}</div>
+      <div class="sheet-body">${v.body}</div></div></div>`;
+    const sheet = root.querySelector(".sheet");
+    sheet.scrollTop = s.scroll || 0;
+    sheet.addEventListener("scroll", () => { s.scroll = sheet.scrollTop; }, { passive: true });
+    if (!root.contains(document.activeElement)) sheet.focus({ preventScroll: true });
+  }
+  // Library-backed parts render once the library arrives (first open only).
+  const whenLibrary = (s) => { if (!S.lib) ensureLibrary().then(() => { if (topSheet() === s) renderSheet(); }).catch(() => { s.libError = true; if (topSheet() === s) renderSheet(); }); };
+
+  sheets.exercise = (s) => {
+    const info = exInfo(s.name, s.ref);
+    const ref = info.ref || s.ref;
+    if (ref) whenLibrary(s);
+    const lib = libEntry(ref, s.name);
+    const imgs = (lib?.images || []).slice(0, 2);
+    const fromLog = s.ex != null && S.draft?.exercises[s.ex]?.name === s.name;
+    const reps = fromLog ? S.draft.exercises[s.ex].planReps : planReps(s.name);
+    const sg = suggestFor(s.name, reps, ref);
+    const hist = window.Progression ? Progression.history(S.data.workouts, s.name).slice(-5).reverse() : [];
+    const best = (sets) => Math.max(0, ...sets.map((st) => epley(+st.load_kg || 0, +st.reps || 0)));
+    const alts = (info.alternatives || []).filter((a) => a !== s.name);
+    const tags = [...new Set(info.muscles?.length ? info.muscles : lib?.groups || [])];
+    const pick = S.sheet.find((x) => x.type === "picker");
+    const shortDate = (iso) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const body = `
+      ${imgs.length ? `<div class="ex-imgs">${imgs.map((p, k) => `<img src="${esc(imgUrl(p))}" alt="${esc(s.name)}, ${k ? "end" : "start"} position" width="850" height="1275" decoding="async">`).join("")}</div>`
+        : ref && !S.lib && !s.libError ? '<div class="ex-imgs" aria-hidden="true"><span></span><span></span></div>' : ""}
+      ${tags.length || lib ? `<div class="tag-row">${tags.map((m) => `<span class="pill cap">${esc(m)}</span>`).join("")}${lib?.equipment && lib.equipment !== "other" ? `<span class="pill ghost cap">${esc(lib.equipment)}</span>` : ""}${lib?.level ? `<span class="pill ghost cap">${esc(lib.level)}</span>` : ""}</div>` : ""}
+      ${s.pick && pick ? `<button type="button" class="btn primary wide" data-act="pick-ex" data-name="${esc(s.name)}" data-ref="${esc(ref || "")}">${pick.mode === "swap" ? `Swap in for ${esc(pick.from)}` : "Add to workout"}</button>` : ""}
+      ${sg && sg.kind !== "none" ? `<section><h3>Next session</h3>
+        ${sg.last ? `<p class="small muted">Last time, ${esc(fmtDay(sg.last.date))}: ${esc(sg.last.text)}</p>` : ""}
+        <div class="suggest">${icon.target}<span>${esc(sg.text)}</span></div></section>` : ""}
+      ${info.cues?.length ? `<section><h3>Coach cues</h3><ul class="cues">${info.cues.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}
+      ${lib?.steps?.length ? `<details class="how"${info.cues?.length ? "" : " open"}><summary>How to do it</summary><ol>${lib.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></details>` : ""}
+      ${alts.length ? `<section><h3>Swaps</h3>
+        <div class="chip-row">${alts.map((a) => `<button type="button" class="chip" data-act="${fromLog ? "do-swap" : "ex-info"}" data-name="${esc(a)}"${fromLog ? ` data-ex="${s.ex}"` : ""}>${fromLog ? `${icon.swap}` : ""}${esc(a)}</button>`).join("")}${fromLog ? `<button type="button" class="chip ghost" data-act="swap" data-ex="${s.ex}">More…</button>` : ""}</div>
+        <p class="small muted" style="margin-top:8px">Coach-approved for when the equipment is taken or a movement feels off. Sharp pain means stop, not swap.</p></section>` : ""}
+      ${hist.length ? `<section><h3>History</h3><div class="table-wrap"><table><thead><tr><th>Date</th><th>Sets</th><th class="num">e1RM</th></tr></thead><tbody>
+        ${hist.map((h) => `<tr><td class="nowrap">${esc(shortDate(h.date))}</td><td>${esc(Progression.describe(h.sets, loadUnit()))}</td><td class="num">${best(h.sets) ? `${Math.round(showLoad(best(h.sets)))} ${loadUnit()}` : "–"}</td></tr>`).join("")}
+        </tbody></table></div></section>` : !s.pick ? '<p class="small muted">No sessions logged yet.</p>' : ""}
+      ${lib ? `<p class="small muted attrib">Photos and steps: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener">Free Exercise DB</a>, public domain.</p>` : ""}`;
+    return { title: s.name, body };
+  };
+
+  sheets.picker = (s) => {
+    whenLibrary(s);
+    const controls = `<div class="pick-controls">
+      <label class="search"><span class="sr-only">Search exercises</span>${icon.search}<input type="search" id="pick-q" value="${esc(s.q)}" placeholder="Search ${S.lib ? `${S.lib.count} ` : ""}exercises" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></label>
+      <div class="chip-row scroll" role="group" aria-label="Filter by muscle">${["all", ...GROUPS].map((g) => `<button type="button" class="chip" data-act="pick-muscle" data-v="${g}" aria-pressed="${s.muscle === g}">${g === "all" ? "All" : cap(g)}</button>`).join("")}</div></div>`;
+    return { title: s.mode === "swap" ? `Swap ${s.from}` : "Add exercise", controls, body: `<div id="pick-results">${pickerResults(s)}</div>` };
+  };
+  function pickerResults(s) {
+    const words = s.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const match = (name, muscles) => words.every((w) => name.toLowerCase().includes(w)) && (s.muscle === "all" || (muscles || []).includes(s.muscle));
+    const thumb = (ref, name) => { const e = libEntry(ref, name); return e?.images?.[0] ? `<img src="${esc(imgUrl(e.images[0]))}" alt="" loading="lazy" decoding="async">` : '<span class="thumb-ph" aria-hidden="true"></span>'; };
+    const row = (name, ref, sub) => `<li><button type="button" class="pick-row" data-act="pick-ex" data-name="${esc(name)}" data-ref="${esc(ref || "")}">${thumb(ref, name)}<span><b>${esc(name)}</b><span class="small muted">${esc(sub)}</span></span></button>
+      <button type="button" class="icon-btn" data-act="pick-info" data-name="${esc(name)}" data-ref="${esc(ref || "")}" aria-label="About ${esc(name)}">${icon.info}</button></li>`;
+    const section = (label, rows) => (rows.length ? `<div class="pick-sec"><div class="eyebrow">${label}</div><ul class="pick-list">${rows.join("")}</ul></div>` : "");
+    const mineSub = (v) => (v.muscles || []).map(cap).join(", ");
+    const current = s.mode === "swap" ? s.from : null;
+    // the coach's swaps for this exercise come first and ignore the muscle filter
+    const alts = s.mode === "swap" ? (exInfo(s.from).alternatives || []).filter((a) => a !== current && words.every((w) => a.toLowerCase().includes(w))) : [];
+    let html = section("Coach-approved swaps", alts.map((a) => row(a, exInfo(a).ref, mineSub(exInfo(a)))));
+    const mine = Object.entries(S.data.exercises).filter(([n, v]) => n !== current && !alts.includes(n) && match(n, v.muscles)).sort((a, b) => a[0].localeCompare(b[0]));
+    html += section("Your exercises", mine.map(([n, v]) => row(n, v.ref, mineSub(v))));
+    if (!S.lib) html += `<p class="small muted pick-sec">${s.libError ? "Couldn't load the exercise library. Check your connection and reopen." : "Loading the exercise library…"}</p>`;
+    else if (!words.length && s.muscle === "all") html += `<p class="small muted pick-sec">Search or pick a muscle to browse ${S.lib.count} more exercises with photos and steps.</p>`;
+    else {
+      const taken = new Set(Object.values(S.data.exercises).map((v) => v.ref).filter(Boolean));
+      const q = words.join(" ");
+      const hits = S.lib.exercises.filter((e) => !taken.has(e.id) && !S.data.exercises[e.name] && match(e.name, e.groups))
+        .sort((a, b) => (b.name.toLowerCase().startsWith(q) - a.name.toLowerCase().startsWith(q)) || a.name.localeCompare(b.name));
+      const shown = hits.slice(0, s.limit);
+      html += section(`Exercise library · ${hits.length}`, shown.map((e) => row(e.name, e.id, `${e.groups.map(cap).join(", ")}${e.equipment ? ` · ${e.equipment}` : ""}`)));
+      if (hits.length > shown.length) html += `<button type="button" class="btn ghost wide" data-act="pick-more">Show more (${hits.length - shown.length})</button>`;
+    }
+    const typed = s.q.trim();
+    if (typed && !S.data.exercises[typed] && !libEntry(null, typed)) html += `<button type="button" class="btn wide pick-sec" data-act="pick-ex" data-name="${esc(typed)}" data-ref="">Add “${esc(typed)}” as your own exercise</button>`;
+    return html || '<div class="empty">No matches</div>';
+  }
+
+  sheets.program = (s) => {
+    const meta = s.meta, p = s.program;
+    if (!p && !s.loading) {
+      s.loading = true;
+      readJSON(`data/programs/${meta.file}`, null).then((j) => { s.program = j; s.error = !j; }).catch(() => { s.error = true; }).finally(() => { s.loading = false; if (topSheet() === s) renderSheet(); });
+    }
+    if (!p) return { title: meta.title, body: s.error ? '<div class="empty">Couldn\'t load this program.</div>' : '<div class="empty">Loading…</div>' };
+    const activeId = S.data.program.id || S.data.programs?.active;
+    const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const rpes = Object.values(p.rpe_by_week || {}).map(Number);
+    const phaseChange = p.phase && p.phase !== S.data.profile?.phase?.current;
+    const body = `
+      <p>${esc(meta.summary || "")}</p>
+      <div class="tag-row"><span class="pill">${esc(phaseName(p.phase || ""))}</span>${meta.days ? `<span class="pill ghost">${esc(meta.days)}</span>` : ""}${p.weeks ? `<span class="pill ghost">${esc(p.weeks)} weeks</span>` : ""}${rpes.length ? `<span class="pill ghost">RPE ${esc(Math.min(...rpes))}-${esc(Math.max(...rpes))}</span>` : ""}${p.deload_weeks?.length ? `<span class="pill ghost">Deload wk ${esc(p.deload_weeks.join(", "))}</span>` : ""}</div>
+      <ul class="ex-list">${order.map((k) => { const d = p.week_template?.[k] || {}; return `<li><span><b>${k}</b><br>${esc(d.name || "Rest")}</span><span class="dose muted cap">${esc(d.type || "")}</span>${d.blocks?.length ? `<span class="note">${d.blocks.map((b) => `${esc(b.exercise)} ${esc(b.sets)}×${esc(b.reps)}`).join(" · ")}</span>` : ""}</li>`; }).join("")}</ul>
+      ${meta.id === activeId ? `<div class="banner">${icon.check} This is your current plan.</div>` : `
+        <button type="button" class="btn primary wide" data-act="switch-program" data-id="${esc(meta.id)}">Switch to this program</button>
+        <p class="small muted">Replaces your current plan${phaseChange ? ` and starts ${esc(phaseName(p.phase))} with week 1 on ${esc(fmtDay(programStart()))}` : ""}. Your logs don't change, and you can switch back any time.</p>`}`;
+    return { title: meta.title, body };
+  };
+  // Week 1 is this week when switching Mon-Thu, next week from Friday on.
+  const programStart = () => { const iso = today(), wd = (new Date(iso + "T12:00:00").getDay() + 6) % 7; return addDays(mondayOf(iso), wd >= 4 ? 7 : 0); };
+  async function switchProgram(s) {
+    const p = structuredClone(s.program), meta = s.meta;
+    const profile = structuredClone(S.data.profile);
+    const index = structuredClone(S.data.programs || { programs: [] });
+    index.active = meta.id;
+    const phaseChange = p.phase && p.phase !== profile.phase?.current;
+    if (phaseChange) profile.phase = { ...(profile.phase || {}), current: p.phase, start_date: programStart() };
+    const files = [{ path: "data/program.json", text: JSON.stringify(p, null, 2) + "\n" }, { path: "data/programs/index.json", text: JSON.stringify(index, null, 2) + "\n" }];
+    if (phaseChange) files.push({ path: "data/profile.json", text: JSON.stringify(profile, null, 2) + "\n" });
+    if (live()) await commitFiles(files, `plan: switch to ${meta.id} (from the app)`);
+    Object.assign(S.data, { program: p, programs: index, profile });
+    S.draft = null;
+  }
+
   // ---------- render + events ----------
   const after = { progress: drawProgress, food: drawFood };
   function render() {
@@ -640,7 +904,7 @@
     if (S.data) after[v]?.(); // charts need data; skip while loading
   }
   function go(view) { location.hash = view; }
-  window.addEventListener("hashchange", () => { S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today"; if (S.view !== "log" && S.meal?.editing) S.meal = null; render(); window.scrollTo(0, 0); });
+  window.addEventListener("hashchange", () => { S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today"; if (S.view !== "log" && S.meal?.editing) S.meal = null; if (S.sheet.length) { S.sheet = []; renderSheet(); } render(); window.scrollTo(0, 0); });
 
   // A meal edit only survives taps on its own fields and Save; any other button, link or tab drops it.
   document.addEventListener("click", (e) => {
@@ -652,14 +916,55 @@
   }, true);
 
   document.addEventListener("click", async (e) => {
+    if (e.target.classList?.contains("sheet-backdrop")) return closeSheet();
     const t = e.target.closest("[data-act],[data-view]");
     if (!t) return;
     if (t.dataset.view) return go(t.dataset.view);
     const a = t.dataset.act, i = +t.dataset.ex, j = +t.dataset.set;
+    const inSheet = !!t.closest(".sheet");
     if (a === "log-tab") { S.logTab = t.dataset.tab; render(); }
     if (a === "goto-log") { S.logTab = t.dataset.tab; go("log"); }
     if (a === "log-session") { S.draft = newDraft(t.dataset.dow); S.logTab = "workout"; go("log"); }
-    if (a === "add-ex") { S.draft.exercises.push({ name: "", sets: [{ reps: "", load: "", rpe: "" }] }); render(); }
+    // sheets
+    if (a === "sheet-close") closeSheet();
+    if (a === "sheet-back") closeSheet(false);
+    if (a === "ex-info") openSheet({ type: "exercise", name: t.dataset.name, ref: t.dataset.ref || null, ex: t.dataset.ex === undefined || t.dataset.ex === "" ? null : i }, { push: inSheet, opener: t });
+    if (a === "add-ex") openSheet({ type: "picker", mode: "add", q: "", muscle: "all", limit: 30 }, { opener: t });
+    if (a === "swap") { const ex = S.draft?.exercises[i]; if (ex) openSheet({ type: "picker", mode: "swap", ex: i, from: ex.name, q: "", muscle: exInfo(ex.name, ex.ref).muscles?.[0] || "all", limit: 30 }, { push: inSheet, opener: t }); }
+    if (a === "pick-info") openSheet({ type: "exercise", name: t.dataset.name, ref: t.dataset.ref || null, pick: true }, { push: true });
+    if (a === "pick-muscle") {
+      const s = S.sheet.find((x) => x.type === "picker"); s.muscle = t.dataset.v; s.limit = 30;
+      t.parentElement.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c === t));
+      $("#pick-results").innerHTML = pickerResults(s);
+    }
+    if (a === "pick-more") { const s = topSheet(); s.limit += 30; $("#pick-results").innerHTML = pickerResults(s); }
+    if (a === "pick-ex") {
+      const s = S.sheet.find((x) => x.type === "picker");
+      if (!s || !S.draft) return closeSheet();
+      if (s.mode === "swap") swapExercise(s.ex, t.dataset.name, t.dataset.ref || null);
+      else addExercise(t.dataset.name, t.dataset.ref || null);
+      closeSheet(); render();
+      toast(s.mode === "swap" ? `Swapped in ${t.dataset.name}` : `Added ${t.dataset.name}`);
+    }
+    if (a === "do-swap") { swapExercise(i, t.dataset.name, null); closeSheet(); render(); toast(`Swapped in ${t.dataset.name}`); }
+    if (a === "program") {
+      const meta = S.data.programs?.programs?.find((m) => m.id === t.dataset.id);
+      if (meta) openSheet({ type: "program", meta }, { opener: t });
+    }
+    if (a === "switch-program") {
+      const s = topSheet();
+      if (!t.dataset.armed) { // two taps, no pop-up
+        t.dataset.armed = "1"; t.textContent = "Tap again to switch";
+        setTimeout(() => { if (t.isConnected) { delete t.dataset.armed; t.textContent = "Switch to this program"; } }, 3000);
+        return;
+      }
+      t.disabled = true; t.textContent = "Switching…";
+      try {
+        await switchProgram(s);
+        closeSheet(); render();
+        toast(live() ? `Switched to ${s.meta.title}` : "Demo mode: switched here only", 3200);
+      } catch (err) { toast(`Couldn't switch: ${err.message}`); t.disabled = false; delete t.dataset.armed; t.textContent = "Switch to this program"; }
+    }
     if (a === "rm-ex") { S.draft.exercises.splice(i, 1); render(); }
     if (a === "add-set") { const sets = S.draft.exercises[i].sets; sets.push({ ...(sets[sets.length - 1] || { reps: "", load: "", rpe: "" }) }); render(); }
     if (a === "rm-set") { S.draft.exercises[i].sets.splice(j, 1); render(); }
@@ -722,9 +1027,14 @@
 
   document.addEventListener("input", (e) => {
     const t = e.target;
+    if (t.id === "pick-q") { const s = S.sheet.find((x) => x.type === "picker"); if (s) { s.q = t.value; s.limit = 30; $("#pick-results").innerHTML = pickerResults(s); } return; }
     if (t.dataset.m && S.meal) S.meal[t.dataset.m] = t.value;
     if (!t.dataset.f || !S.draft || !t.closest("#log-form")) return;
-    if (t.dataset.set != null) S.draft.exercises[+t.dataset.ex].sets[+t.dataset.set][t.dataset.f] = t.value;
+    if (t.dataset.set != null) {
+      const st = S.draft.exercises[+t.dataset.ex].sets[+t.dataset.set];
+      st[t.dataset.f] = t.value;
+      if (t.dataset.f === "load" && st.auto) { st.auto = false; t.classList.remove("is-auto"); }
+    }
     else if (t.dataset.ex != null) S.draft.exercises[+t.dataset.ex][t.dataset.f] = t.value;
     else S.draft[t.dataset.f] = t.value;
   });
@@ -759,7 +1069,13 @@
       const kind = f.dataset.kind;
       if (kind === "workout") {
         const dr = S.draft;
-        const exercises = dr.exercises.filter((x) => x.name.trim()).map((x) => ({ name: x.name.trim(), sets: x.sets.filter((s) => s.reps !== "" || s.load !== "").map((s) => ({ reps: +s.reps || 0, load_kg: s.load === "" ? 0 : round(toKg(+s.load), 0.1), ...(s.rpe !== "" ? { rpe: +s.rpe } : {}) })) })).filter((x) => x.sets.length);
+        // A set counts once you type reps (or a load yourself); untouched suggested loads alone aren't saved.
+        // Exercises from the library carry ref + muscle groups so analyze.py can count their sets.
+        const exercises = dr.exercises.filter((x) => x.name.trim()).map((x) => {
+          const mine = !!S.data.exercises[x.name];
+          return { name: x.name.trim(), ...(!mine && x.ref ? { ref: x.ref } : {}), ...(!mine && x.muscles?.length ? { muscles: x.muscles } : {}), ...(x.swappedFrom ? { swapped_from: x.swappedFrom } : {}),
+            sets: x.sets.filter((s) => s.reps !== "" || (s.load !== "" && !s.auto)).map((s) => ({ reps: +s.reps || 0, load_kg: s.load === "" ? 0 : round(toKg(+s.load), 0.1), ...(s.rpe !== "" ? { rpe: +s.rpe } : {}) })) };
+        }).filter((x) => x.sets.length);
         if (!exercises.length && !dr.duration_min) { toast("Add at least one set or the minutes"); return; }
         const obj = { date: dr.date, type: dr.type, session: dr.session || undefined, duration_min: dr.duration_min ? +dr.duration_min : undefined, exercises: exercises.length ? exercises : undefined, notes: dr.notes || undefined };
         await saveEntry("workout", JSON.parse(JSON.stringify(obj)));
@@ -803,6 +1119,7 @@
     const next = cur === "dark" ? "light" : "dark"; applyTheme(next); store.set("ritmo.theme", next); render();
   });
   $("#settings-btn").addEventListener("click", () => go("settings"));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.sheet.length) { e.preventDefault(); closeSheet(false); } });
   window.addEventListener("online", flushQueue);
 
   // Home-screen apps resume without reloading: refresh when the app comes back to the front.
@@ -815,7 +1132,7 @@
     const ptr = $("#ptr");
     let startY = null, dist = 0;
     const reset = () => { startY = null; dist = 0; ptr.style.transform = ""; ptr.classList.remove("ready"); };
-    window.addEventListener("touchstart", (e) => { if (window.scrollY <= 0 && !refreshing && e.touches.length === 1) startY = e.touches[0].clientY; }, { passive: true });
+    window.addEventListener("touchstart", (e) => { if (window.scrollY <= 0 && !refreshing && !S.sheet.length && e.touches.length === 1) startY = e.touches[0].clientY; }, { passive: true });
     window.addEventListener("touchmove", (e) => {
       if (startY == null) return;
       dist = e.touches[0].clientY - startY;

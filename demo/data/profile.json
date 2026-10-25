@@ -15,7 +15,7 @@
   ],
   "phase": {
     "current": "phase-1",
-    "start_date": "2026-09-19"
+    "start_date": "2026-09-15"
   },
   "schedule": {
     "gym_days_per_week": 3,
@@ -41,7 +41,12 @@
     ],
     "nutrition_lookup": "URI NetNutrition",
     "preferences": [],
-    "avoid": []
+    "avoid": [],
+    "meal_times": {
+      "breakfast": "05:00-11:00",
+      "lunch": "11:00-16:00",
+      "dinner": "17:00-21:00"
+    }
   },
   "injuries_or_limits": [],
   "nutrition_settings": {

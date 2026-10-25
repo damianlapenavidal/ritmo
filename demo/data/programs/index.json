@@ -1,0 +1,24 @@
+{
+  "_note": "Program library. data/program.json is the active copy; switching (app or coach) copies a file from here into it.",
+  "active": "phase-1-athletic-base",
+  "programs": [
+    {
+      "id": "phase-1-athletic-base",
+      "file": "phase-1-athletic-base.json",
+      "title": "Phase 1 - Athletic base",
+      "phase": "phase-1",
+      "weeks": 6,
+      "days": "3 gym + 2 conditioning",
+      "summary": "Return-to-sport base: plyos, strength, intervals, Nordics and Copenhagens."
+    },
+    {
+      "id": "phase-2-upper-lower",
+      "file": "phase-2-upper-lower.json",
+      "title": "Phase 2 - Upper / lower (4 days + soccer)",
+      "phase": "phase-2",
+      "weeks": 12,
+      "days": "4 gym + 1-2 conditioning",
+      "summary": "Lighter schedule: upper/lower twice a week with soccer or intervals."
+    }
+  ]
+}

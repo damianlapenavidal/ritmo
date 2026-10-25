@@ -3,7 +3,9 @@
 Damian's phone-first training and nutrition app. Static site on GitHub Pages: pushing to `main` deploys to https://damianlapenavidal.github.io/ritmo/ in about a minute.
 
 ## How it works
-- No build step, no framework, no dependencies. `index.html` (shell + tabs), `app.js` (state, data layer, views, events), `charts.js` (hand-written SVG charts), `styles.css` (tokens + components).
+- No build step, no framework, no dependencies. `index.html` (shell + tabs), `app.js` (state, data layer, views, events), `charts.js` (hand-written SVG charts), `progression.js` (last time + suggested load, pure functions), `styles.css` (tokens + components).
+- `library/exercises.json`: 876 exercises from Free Exercise DB (public domain, pinned commit; rebuild with `python3 scripts/build_library.py`). Loaded on first use; photos are hotlinked from that commit, not stored here. Don't add exercise data, images or code from wger, Liftosaur or Lyfta (licenses); see THIRD_PARTY.md.
+- Bottom sheets (`S.sheet` stack, `sheets.*`, `renderSheet()`): exercise details, the add/swap picker and program previews. Program switches write `data/program.json`, `data/programs/index.json` and (on a phase change) `data/profile.json` in one commit via the Git Data API (`commitFiles`).
 - Real data lives in the **private** repo `damianlapenavidal/fitness-coach`. The app reads and writes it through the GitHub contents API with a fine-grained token kept in the browser's localStorage. Log files are JSON Lines; their schema is in that repo's `knowledge/data-schema.md`.
 - `demo/` holds **made-up** data mirroring that repo's layout, used when no token is set. Regenerate it from the private repo with `python3 scripts/make_demo.py ../ritmo/demo`.
 - Views are functions in `views` returning HTML strings; `after[view]` draws charts after render. Clicks route through `data-act` attributes in one delegated handler.
@@ -22,4 +24,4 @@ Damian's phone-first training and nutrition app. Static site on GitHub Pages: pu
 python3 -m http.server 8000   # then open http://localhost:8000 (demo mode)
 ```
 To test with real data locally, open Settings and enter the token again (localStorage is per site, so localhost doesn't share the phone's token).
-Before pushing: click through Today, Log (all four tabs), Progress, Food, Plan and Settings, in light and dark, with no console errors.
+Before pushing: run `node tests/progression.test.js`, then click through Today, Log (all four tabs), Progress, Food, Plan and Settings, plus the exercise sheet, Swap, + Exercise and a program preview, in light and dark, with no console errors.

@@ -1,42 +1,852 @@
 {
-  "_note": "Exercise library used for weekly hard-set counts. muscles[0] is the primary muscle. key=true marks lifts tracked for estimated 1RM.",
-  "Trap Bar Deadlift": { "muscles": ["glutes", "hamstrings", "quads", "back"], "pattern": "hinge", "key": true },
-  "Back Squat": { "muscles": ["quads", "glutes", "adductors"], "pattern": "squat", "key": true },
-  "Front Squat": { "muscles": ["quads", "glutes", "core"], "pattern": "squat", "key": true },
-  "Goblet Squat": { "muscles": ["quads", "glutes"], "pattern": "squat", "key": false },
-  "Romanian Deadlift": { "muscles": ["hamstrings", "glutes", "back"], "pattern": "hinge", "key": true },
-  "Hip Thrust": { "muscles": ["glutes", "hamstrings"], "pattern": "hinge", "key": false },
-  "Bulgarian Split Squat": { "muscles": ["quads", "glutes", "adductors"], "pattern": "lunge", "key": false },
-  "Split Squat": { "muscles": ["quads", "glutes"], "pattern": "lunge", "key": false },
-  "Walking Lunge": { "muscles": ["quads", "glutes"], "pattern": "lunge", "key": false },
-  "Leg Press": { "muscles": ["quads", "glutes"], "pattern": "squat", "key": false },
-  "Leg Curl": { "muscles": ["hamstrings"], "pattern": "isolation", "key": false },
-  "Leg Extension": { "muscles": ["quads"], "pattern": "isolation", "key": false },
-  "Nordic Hamstring Curl": { "muscles": ["hamstrings"], "pattern": "isolation", "key": false },
-  "Copenhagen Plank": { "muscles": ["adductors", "core"], "pattern": "core", "key": false },
-  "Standing Calf Raise": { "muscles": ["calves"], "pattern": "isolation", "key": false },
-  "Seated Calf Raise": { "muscles": ["calves"], "pattern": "isolation", "key": false },
-  "Bench Press": { "muscles": ["chest", "shoulders", "arms"], "pattern": "push-horizontal", "key": true },
-  "Dumbbell Bench Press": { "muscles": ["chest", "shoulders", "arms"], "pattern": "push-horizontal", "key": false },
-  "Incline Dumbbell Press": { "muscles": ["chest", "shoulders", "arms"], "pattern": "push-horizontal", "key": false },
-  "Push-up": { "muscles": ["chest", "shoulders", "arms"], "pattern": "push-horizontal", "key": false },
-  "Overhead Press": { "muscles": ["shoulders", "arms"], "pattern": "push-vertical", "key": true },
-  "Dumbbell Shoulder Press": { "muscles": ["shoulders", "arms"], "pattern": "push-vertical", "key": false },
-  "Lateral Raise": { "muscles": ["shoulders"], "pattern": "isolation", "key": false },
-  "Pull-up": { "muscles": ["back", "arms"], "pattern": "pull-vertical", "key": true },
-  "Assisted Pull-up": { "muscles": ["back", "arms"], "pattern": "pull-vertical", "key": false },
-  "Lat Pulldown": { "muscles": ["back", "arms"], "pattern": "pull-vertical", "key": false },
-  "Chest-Supported Row": { "muscles": ["back", "arms"], "pattern": "pull-horizontal", "key": false },
-  "Barbell Row": { "muscles": ["back", "arms"], "pattern": "pull-horizontal", "key": false },
-  "Seated Cable Row": { "muscles": ["back", "arms"], "pattern": "pull-horizontal", "key": false },
-  "Face Pull": { "muscles": ["shoulders", "back"], "pattern": "isolation", "key": false },
-  "Biceps Curl": { "muscles": ["arms"], "pattern": "isolation", "key": false },
-  "Triceps Pushdown": { "muscles": ["arms"], "pattern": "isolation", "key": false },
-  "Pallof Press": { "muscles": ["core"], "pattern": "core", "key": false },
-  "Side Plank": { "muscles": ["core"], "pattern": "core", "key": false },
-  "Farmer Carry": { "muscles": ["core", "back"], "pattern": "carry", "key": false },
-  "Box Jump": { "muscles": ["quads", "glutes"], "pattern": "plyo", "key": false },
-  "Pogo Hops": { "muscles": ["calves"], "pattern": "plyo", "key": false },
-  "Lateral Bound": { "muscles": ["glutes", "adductors"], "pattern": "plyo", "key": false },
-  "Med Ball Rotational Throw": { "muscles": ["core"], "pattern": "plyo", "key": false }
+ "_note": "Exercise library for Damian's plan. muscles[0] is the primary muscle. key=true = tracked for estimated 1RM. ref = Free Exercise DB id (images and instructions in the Ritmo app's library). step_lb = load added when the progression rule says go up. per_hand = load is logged per dumbbell. alternatives = coach-approved swaps. cues = coach notes shown in the app.",
+ "Trap Bar Deadlift": {
+  "muscles": [
+   "glutes",
+   "hamstrings",
+   "quads",
+   "back"
+  ],
+  "pattern": "hinge",
+  "key": true,
+  "ref": "Trap_Bar_Deadlift",
+  "step_lb": 10,
+  "alternatives": [
+   "Romanian Deadlift",
+   "Goblet Squat"
+  ],
+  "cues": [
+   "Stand in the middle, handles in line with your ankles",
+   "Push the floor away; hips and shoulders rise together",
+   "Stand tall at the top, don't lean back"
+  ]
+ },
+ "Back Squat": {
+  "muscles": [
+   "quads",
+   "glutes",
+   "adductors"
+  ],
+  "pattern": "squat",
+  "key": true,
+  "ref": "Barbell_Squat",
+  "step_lb": 10,
+  "alternatives": [
+   "Hack Squat",
+   "Leg Press",
+   "Goblet Squat"
+  ],
+  "cues": [
+   "Bar on upper back, brace before each rep",
+   "Knees track over toes; sit between your hips",
+   "Depth you can own with a neutral back"
+  ]
+ },
+ "Front Squat": {
+  "muscles": [
+   "quads",
+   "glutes",
+   "core"
+  ],
+  "pattern": "squat",
+  "key": true,
+  "ref": "Front_Barbell_Squat",
+  "step_lb": 10,
+  "alternatives": [
+   "Back Squat",
+   "Goblet Squat"
+  ]
+ },
+ "Goblet Squat": {
+  "muscles": [
+   "quads",
+   "glutes"
+  ],
+  "pattern": "squat",
+  "key": false,
+  "ref": "Goblet_Squat",
+  "step_lb": 5,
+  "alternatives": [
+   "Leg Press",
+   "Split Squat"
+  ]
+ },
+ "Romanian Deadlift": {
+  "muscles": [
+   "hamstrings",
+   "glutes",
+   "back"
+  ],
+  "pattern": "hinge",
+  "key": true,
+  "ref": "Romanian_Deadlift",
+  "step_lb": 10,
+  "alternatives": [
+   "Single-Leg RDL",
+   "Hip Thrust",
+   "Leg Curl"
+  ],
+  "cues": [
+   "Soft knees, push hips back",
+   "Bar slides down your thighs; stop when hamstrings are tight",
+   "Back flat, no rounding to reach lower"
+  ]
+ },
+ "Hip Thrust": {
+  "muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "pattern": "hinge",
+  "key": false,
+  "ref": "Barbell_Hip_Thrust",
+  "step_lb": 10,
+  "alternatives": [
+   "Single-Leg Glute Bridge",
+   "Romanian Deadlift"
+  ]
+ },
+ "Bulgarian Split Squat": {
+  "muscles": [
+   "quads",
+   "glutes",
+   "adductors"
+  ],
+  "pattern": "lunge",
+  "key": false,
+  "ref": null,
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Split Squat",
+   "Dumbbell Lunge"
+  ],
+  "cues": [
+   "Rear foot on a bench, front foot about a stride ahead",
+   "Drop straight down; front knee over mid-foot",
+   "Dumbbells at your sides (load is per dumbbell)"
+  ]
+ },
+ "Split Squat": {
+  "muscles": [
+   "quads",
+   "glutes"
+  ],
+  "pattern": "lunge",
+  "key": false,
+  "ref": "Split_Squat_with_Dumbbells",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Bulgarian Split Squat",
+   "Dumbbell Lunge",
+   "Walking Lunge"
+  ],
+  "cues": [
+   "Long stance, both feet forward",
+   "Drop the back knee toward the floor",
+   "Push through the front heel"
+  ]
+ },
+ "Walking Lunge": {
+  "muscles": [
+   "quads",
+   "glutes"
+  ],
+  "pattern": "lunge",
+  "key": false,
+  "ref": "Bodyweight_Walking_Lunge",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Dumbbell Lunge",
+   "Split Squat"
+  ]
+ },
+ "Leg Press": {
+  "muscles": [
+   "quads",
+   "glutes"
+  ],
+  "pattern": "squat",
+  "key": false,
+  "ref": "Leg_Press",
+  "step_lb": 10,
+  "alternatives": [
+   "Hack Squat",
+   "Goblet Squat"
+  ]
+ },
+ "Leg Curl": {
+  "muscles": [
+   "hamstrings"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Lying_Leg_Curls",
+  "step_lb": 5,
+  "alternatives": [
+   "Swiss Ball Leg Curl",
+   "Romanian Deadlift"
+  ]
+ },
+ "Leg Extension": {
+  "muscles": [
+   "quads"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Leg_Extensions",
+  "step_lb": 5,
+  "alternatives": [
+   "Split Squat",
+   "Goblet Squat"
+  ]
+ },
+ "Nordic Hamstring Curl": {
+  "muscles": [
+   "hamstrings"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Natural_Glute_Ham_Raise",
+  "step_lb": 0,
+  "alternatives": [
+   "Glute Ham Raise",
+   "Swiss Ball Leg Curl"
+  ],
+  "cues": [
+   "Kneel with heels anchored (partner, pad or machine)",
+   "Lower as slowly as you can with hips straight",
+   "Catch yourself with your hands; start band-assisted or with short range"
+  ]
+ },
+ "Copenhagen Plank": {
+  "muscles": [
+   "adductors",
+   "core"
+  ],
+  "pattern": "core",
+  "key": false,
+  "ref": null,
+  "step_lb": 0,
+  "alternatives": [
+   "Side Plank"
+  ],
+  "cues": [
+   "Side plank with your top leg on a bench, bottom leg free",
+   "Short lever (knee on the bench) to start; full lever (ankle) later",
+   "Hips up and straight; stop if you feel a sharp pull in the groin"
+  ]
+ },
+ "Standing Calf Raise": {
+  "muscles": [
+   "calves"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Standing_Calf_Raises",
+  "step_lb": 5,
+  "alternatives": [
+   "Seated Calf Raise"
+  ]
+ },
+ "Seated Calf Raise": {
+  "muscles": [
+   "calves"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Seated_Calf_Raise",
+  "step_lb": 5,
+  "alternatives": [
+   "Standing Calf Raise"
+  ]
+ },
+ "Bench Press": {
+  "muscles": [
+   "chest",
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-horizontal",
+  "key": true,
+  "ref": "Barbell_Bench_Press_-_Medium_Grip",
+  "step_lb": 5,
+  "alternatives": [
+   "Dumbbell Bench Press",
+   "Chest Press Machine"
+  ]
+ },
+ "Dumbbell Bench Press": {
+  "muscles": [
+   "chest",
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-horizontal",
+  "key": false,
+  "ref": "Dumbbell_Bench_Press",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Bench Press",
+   "Chest Press Machine",
+   "Push-up"
+  ]
+ },
+ "Incline Dumbbell Press": {
+  "muscles": [
+   "chest",
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-horizontal",
+  "key": false,
+  "ref": "Incline_Dumbbell_Press",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Chest Press Machine",
+   "Dumbbell Bench Press"
+  ]
+ },
+ "Push-up": {
+  "muscles": [
+   "chest",
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-horizontal",
+  "key": false,
+  "ref": "Pushups",
+  "step_lb": 0,
+  "alternatives": [
+   "Dumbbell Bench Press"
+  ]
+ },
+ "Overhead Press": {
+  "muscles": [
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-vertical",
+  "key": true,
+  "ref": "Standing_Military_Press",
+  "step_lb": 5,
+  "alternatives": [
+   "Dumbbell Shoulder Press",
+   "Machine Shoulder Press"
+  ]
+ },
+ "Dumbbell Shoulder Press": {
+  "muscles": [
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-vertical",
+  "key": false,
+  "ref": "Dumbbell_Shoulder_Press",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Machine Shoulder Press",
+   "Overhead Press"
+  ]
+ },
+ "Lateral Raise": {
+  "muscles": [
+   "shoulders"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Side_Lateral_Raise",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": []
+ },
+ "Pull-up": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-vertical",
+  "key": true,
+  "ref": "Pullups",
+  "step_lb": 0,
+  "alternatives": [
+   "Assisted Pull-up",
+   "Lat Pulldown"
+  ]
+ },
+ "Assisted Pull-up": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-vertical",
+  "key": false,
+  "ref": "Band_Assisted_Pull-Up",
+  "step_lb": 0,
+  "alternatives": [
+   "Lat Pulldown",
+   "Inverted Row"
+  ],
+  "cues": [
+   "Band or machine assist",
+   "Pull your chest to the bar, elbows to ribs",
+   "Use less assistance as reps get easy"
+  ]
+ },
+ "Lat Pulldown": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-vertical",
+  "key": false,
+  "ref": "Wide-Grip_Lat_Pulldown",
+  "step_lb": 5,
+  "alternatives": [
+   "Assisted Pull-up",
+   "Seated Cable Row"
+  ]
+ },
+ "Chest-Supported Row": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-horizontal",
+  "key": false,
+  "ref": "Dumbbell_Incline_Row",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Seated Cable Row",
+   "One-Arm Dumbbell Row",
+   "Barbell Row"
+  ]
+ },
+ "Barbell Row": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-horizontal",
+  "key": false,
+  "ref": "Bent_Over_Barbell_Row",
+  "step_lb": 5,
+  "alternatives": [
+   "Chest-Supported Row",
+   "One-Arm Dumbbell Row"
+  ]
+ },
+ "Seated Cable Row": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-horizontal",
+  "key": false,
+  "ref": "Seated_Cable_Rows",
+  "step_lb": 5,
+  "alternatives": [
+   "Chest-Supported Row",
+   "One-Arm Dumbbell Row"
+  ]
+ },
+ "Face Pull": {
+  "muscles": [
+   "shoulders",
+   "back"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Face_Pull",
+  "step_lb": 5,
+  "alternatives": [
+   "Rear Delt Fly"
+  ]
+ },
+ "Biceps Curl": {
+  "muscles": [
+   "arms"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Dumbbell_Bicep_Curl",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Cable Biceps Curl",
+   "Incline Dumbbell Curl"
+  ]
+ },
+ "Triceps Pushdown": {
+  "muscles": [
+   "arms"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Triceps_Pushdown",
+  "step_lb": 5,
+  "alternatives": [
+   "Overhead Rope Extension",
+   "Dips"
+  ]
+ },
+ "Pallof Press": {
+  "muscles": [
+   "core"
+  ],
+  "pattern": "core",
+  "key": false,
+  "ref": "Pallof_Press",
+  "step_lb": 5,
+  "alternatives": [
+   "Dead Bug",
+   "Side Plank"
+  ],
+  "cues": [
+   "Stand side-on to the cable",
+   "Press straight out and resist the twist",
+   "Ribs down, glutes tight"
+  ]
+ },
+ "Side Plank": {
+  "muscles": [
+   "core"
+  ],
+  "pattern": "core",
+  "key": false,
+  "ref": "Side_Bridge",
+  "step_lb": 0,
+  "alternatives": [
+   "Plank",
+   "Pallof Press"
+  ],
+  "cues": [
+   "Elbow under shoulder",
+   "Body in a straight line, hips high",
+   "Breathe; quality over time"
+  ]
+ },
+ "Farmer Carry": {
+  "muscles": [
+   "core",
+   "back"
+  ],
+  "pattern": "carry",
+  "key": false,
+  "ref": "Farmers_Walk",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": []
+ },
+ "Box Jump": {
+  "muscles": [
+   "quads",
+   "glutes"
+  ],
+  "pattern": "plyo",
+  "key": false,
+  "ref": "Front_Box_Jump",
+  "step_lb": 0,
+  "alternatives": [],
+  "cues": [
+   "Low box; swing arms and jump",
+   "Land softly in a quarter squat",
+   "Step down, don't jump down"
+  ]
+ },
+ "Pogo Hops": {
+  "muscles": [
+   "calves"
+  ],
+  "pattern": "plyo",
+  "key": false,
+  "ref": null,
+  "step_lb": 0,
+  "alternatives": [],
+  "cues": [
+   "Small, quick hops off the balls of your feet",
+   "Ankles stiff, knees nearly straight",
+   "Minimal ground contact time; stop when hops get slow"
+  ]
+ },
+ "Lateral Bound": {
+  "muscles": [
+   "glutes",
+   "adductors"
+  ],
+  "pattern": "plyo",
+  "key": false,
+  "ref": "Lateral_Bound",
+  "step_lb": 0,
+  "alternatives": [],
+  "cues": [
+   "Push off one leg sideways onto the other",
+   "Stick the landing for a second, knee over toes",
+   "Distance you can control, then build"
+  ]
+ },
+ "Med Ball Rotational Throw": {
+  "muscles": [
+   "core"
+  ],
+  "pattern": "plyo",
+  "key": false,
+  "ref": null,
+  "step_lb": 0,
+  "alternatives": [
+   "Pallof Press"
+  ],
+  "cues": [
+   "Side-on to a wall, ball at hip",
+   "Rotate from the hips, then throw hard",
+   "Catch, reset, repeat; same reps each side"
+  ]
+ },
+ "Hack Squat": {
+  "muscles": [
+   "quads",
+   "glutes"
+  ],
+  "pattern": "squat",
+  "key": false,
+  "ref": "Hack_Squat",
+  "step_lb": 10,
+  "alternatives": [
+   "Leg Press",
+   "Back Squat"
+  ]
+ },
+ "Chest Press Machine": {
+  "muscles": [
+   "chest",
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-horizontal",
+  "key": false,
+  "ref": "Leverage_Chest_Press",
+  "step_lb": 5,
+  "alternatives": [
+   "Dumbbell Bench Press",
+   "Bench Press"
+  ]
+ },
+ "Machine Shoulder Press": {
+  "muscles": [
+   "shoulders",
+   "arms"
+  ],
+  "pattern": "push-vertical",
+  "key": false,
+  "ref": "Machine_Shoulder_Military_Press",
+  "step_lb": 5,
+  "alternatives": [
+   "Dumbbell Shoulder Press"
+  ]
+ },
+ "Cable Chest Fly": {
+  "muscles": [
+   "chest"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Cable_Crossover",
+  "step_lb": 5,
+  "alternatives": [
+   "Chest Press Machine"
+  ]
+ },
+ "Dips": {
+  "muscles": [
+   "arms",
+   "chest",
+   "shoulders"
+  ],
+  "pattern": "push-vertical",
+  "key": false,
+  "ref": "Dips_-_Triceps_Version",
+  "step_lb": 0,
+  "alternatives": [
+   "Triceps Pushdown",
+   "Push-up"
+  ]
+ },
+ "Rear Delt Fly": {
+  "muscles": [
+   "shoulders",
+   "back"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Seated_Bent-Over_Rear_Delt_Raise",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Face Pull"
+  ]
+ },
+ "Incline Dumbbell Curl": {
+  "muscles": [
+   "arms"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Incline_Dumbbell_Curl",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Biceps Curl",
+   "Cable Biceps Curl"
+  ]
+ },
+ "Cable Biceps Curl": {
+  "muscles": [
+   "arms"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Standing_Biceps_Cable_Curl",
+  "step_lb": 5,
+  "alternatives": [
+   "Biceps Curl"
+  ]
+ },
+ "Overhead Rope Extension": {
+  "muscles": [
+   "arms"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Cable_Rope_Overhead_Triceps_Extension",
+  "step_lb": 5,
+  "alternatives": [
+   "Triceps Pushdown"
+  ]
+ },
+ "One-Arm Dumbbell Row": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-horizontal",
+  "key": false,
+  "ref": "One-Arm_Dumbbell_Row",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Chest-Supported Row",
+   "Seated Cable Row"
+  ]
+ },
+ "Inverted Row": {
+  "muscles": [
+   "back",
+   "arms"
+  ],
+  "pattern": "pull-horizontal",
+  "key": false,
+  "ref": "Inverted_Row",
+  "step_lb": 0,
+  "alternatives": [
+   "Seated Cable Row"
+  ]
+ },
+ "Single-Leg Glute Bridge": {
+  "muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "pattern": "hinge",
+  "key": false,
+  "ref": "Single_Leg_Glute_Bridge",
+  "step_lb": 0,
+  "alternatives": [
+   "Hip Thrust"
+  ]
+ },
+ "Dumbbell Lunge": {
+  "muscles": [
+   "quads",
+   "glutes"
+  ],
+  "pattern": "lunge",
+  "key": false,
+  "ref": "Dumbbell_Lunges",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Walking Lunge",
+   "Split Squat"
+  ]
+ },
+ "Glute Ham Raise": {
+  "muscles": [
+   "hamstrings",
+   "glutes"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Glute_Ham_Raise",
+  "step_lb": 0,
+  "alternatives": [
+   "Nordic Hamstring Curl",
+   "Swiss Ball Leg Curl"
+  ]
+ },
+ "Swiss Ball Leg Curl": {
+  "muscles": [
+   "hamstrings"
+  ],
+  "pattern": "isolation",
+  "key": false,
+  "ref": "Ball_Leg_Curl",
+  "step_lb": 0,
+  "alternatives": [
+   "Leg Curl"
+  ]
+ },
+ "Single-Leg RDL": {
+  "muscles": [
+   "hamstrings",
+   "glutes"
+  ],
+  "pattern": "hinge",
+  "key": false,
+  "ref": "Kettlebell_One-Legged_Deadlift",
+  "step_lb": 5,
+  "per_hand": true,
+  "alternatives": [
+   "Romanian Deadlift"
+  ]
+ },
+ "Plank": {
+  "muscles": [
+   "core"
+  ],
+  "pattern": "core",
+  "key": false,
+  "ref": "Plank",
+  "step_lb": 0,
+  "alternatives": [
+   "Dead Bug"
+  ]
+ },
+ "Dead Bug": {
+  "muscles": [
+   "core"
+  ],
+  "pattern": "core",
+  "key": false,
+  "ref": "Dead_Bug",
+  "step_lb": 0,
+  "alternatives": [
+   "Plank"
+  ]
+ }
 }

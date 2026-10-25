@@ -1,0 +1,229 @@
+{
+  "_note": "The active training plan. The app shows today's session from 'week_template'. Claude edits this file when the plan changes; plans/*.md explain the reasoning.",
+  "id": "phase-1-athletic-base",
+  "phase": "phase-1",
+  "title": "Phase 1 - Athletic base",
+  "weeks": 6,
+  "intensity_by_week": {
+    "1": "RPE 6 - learn the movements, leave 4 reps in reserve",
+    "2": "RPE 6-7",
+    "3": "RPE 7",
+    "4": "RPE 7-8",
+    "5": "RPE 7-8 - best week",
+    "6": "Deload + retest benchmarks"
+  },
+  "rpe_by_week": {
+    "1": 6,
+    "2": 6.5,
+    "3": 7,
+    "4": 7.5,
+    "5": 8,
+    "6": 6
+  },
+  "deload_weeks": [
+    6
+  ],
+  "progression": "Double progression: work up to the top of the rep range at or below the week's RPE, then add step_lb. Miss the bottom of the range twice in a row: drop about 10%.",
+  "warmup": "10 min: easy jog, dynamic mobility, FIFA 11+-style drills (skips, lateral shuffles, controlled cuts), 2 ramp-up sets of the first lift",
+  "week_template": {
+    "Mon": {
+      "name": "Gym A - Strength + power",
+      "type": "lift",
+      "blocks": [
+        {
+          "exercise": "Pogo Hops",
+          "sets": 3,
+          "reps": "15",
+          "note": "quick, stiff ankles"
+        },
+        {
+          "exercise": "Box Jump",
+          "sets": 3,
+          "reps": "4",
+          "note": "low box, step down"
+        },
+        {
+          "exercise": "Trap Bar Deadlift",
+          "sets": 3,
+          "reps": "5"
+        },
+        {
+          "exercise": "Dumbbell Bench Press",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "exercise": "Split Squat",
+          "sets": 3,
+          "reps": "8/side"
+        },
+        {
+          "exercise": "Chest-Supported Row",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "exercise": "Nordic Hamstring Curl",
+          "sets": 2,
+          "reps": "3-5",
+          "note": "band-assisted at first"
+        },
+        {
+          "exercise": "Copenhagen Plank",
+          "sets": 2,
+          "reps": "15-20s/side",
+          "note": "short-lever version first"
+        }
+      ]
+    },
+    "Tue": {
+      "name": "Conditioning - Intervals",
+      "type": "conditioning",
+      "blocks": [
+        {
+          "exercise": "Intervals",
+          "sets": 6,
+          "reps": "1 min hard / 1 min easy",
+          "note": "add 1 rep per week up to 10; track or bike"
+        },
+        {
+          "exercise": "Agility",
+          "sets": 4,
+          "reps": "5-10-5 shuttle at ~80%",
+          "note": "focus on decelerating well"
+        }
+      ]
+    },
+    "Wed": {
+      "name": "Rest or easy walk + mobility",
+      "type": "rest",
+      "blocks": []
+    },
+    "Thu": {
+      "name": "Gym B - Strength + elasticity",
+      "type": "lift",
+      "blocks": [
+        {
+          "exercise": "Lateral Bound",
+          "sets": 3,
+          "reps": "4/side",
+          "note": "stick each landing"
+        },
+        {
+          "exercise": "Med Ball Rotational Throw",
+          "sets": 3,
+          "reps": "5/side"
+        },
+        {
+          "exercise": "Goblet Squat",
+          "sets": 3,
+          "reps": "8",
+          "note": "move to Back Squat in week 3"
+        },
+        {
+          "exercise": "Assisted Pull-up",
+          "sets": 3,
+          "reps": "6-8"
+        },
+        {
+          "exercise": "Romanian Deadlift",
+          "sets": 3,
+          "reps": "8"
+        },
+        {
+          "exercise": "Dumbbell Shoulder Press",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "exercise": "Standing Calf Raise",
+          "sets": 3,
+          "reps": "12-15"
+        },
+        {
+          "exercise": "Side Plank",
+          "sets": 2,
+          "reps": "30s/side"
+        }
+      ]
+    },
+    "Fri": {
+      "name": "Conditioning - Tempo run or pickup soccer",
+      "type": "conditioning",
+      "blocks": [
+        {
+          "exercise": "Tempo run",
+          "sets": 1,
+          "reps": "20-30 min conversational pace",
+          "note": "or 45-60 min of pickup soccer from week 3"
+        }
+      ]
+    },
+    "Sat": {
+      "name": "Gym C - Speed + hypertrophy (from week 3)",
+      "type": "lift",
+      "optional": true,
+      "blocks": [
+        {
+          "exercise": "Sprint accelerations",
+          "sets": 6,
+          "reps": "20 m at ~85%",
+          "note": "full walk-back recovery"
+        },
+        {
+          "exercise": "Leg Press",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "exercise": "Incline Dumbbell Press",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "exercise": "Lat Pulldown",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "exercise": "Hip Thrust",
+          "sets": 3,
+          "reps": "10"
+        },
+        {
+          "exercise": "Farmer Carry",
+          "sets": 3,
+          "reps": "30 m"
+        }
+      ]
+    },
+    "Sun": {
+      "name": "Rest",
+      "type": "rest",
+      "blocks": []
+    }
+  },
+  "benchmarks": [
+    {
+      "test": "1.5 mile run",
+      "unit": "min",
+      "better": "lower"
+    },
+    {
+      "test": "20 m sprint",
+      "unit": "s",
+      "better": "lower",
+      "note": "phone video timing, same surface each time"
+    },
+    {
+      "test": "Standing broad jump",
+      "unit": "cm",
+      "better": "higher"
+    },
+    {
+      "test": "Max pull-ups",
+      "unit": "reps",
+      "better": "higher"
+    }
+  ]
+}

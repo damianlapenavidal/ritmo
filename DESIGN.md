@@ -30,7 +30,7 @@ Designed for three phones only: iPhone 17 and 17 Pro (402 px wide) and iPhone 16
 Radius 14px (cards), 8px (inputs), pill for buttons and chips. Base spacing 16px; grid gaps 12px. Touch targets at least 44px.
 
 ## Components
-Stat tile (label, big number, unit, sub, meter) · session list · flag (icon + text) · segmented control · set-row input grid · quick-add chips · line chart (dots + 7-day line, dashed target) · bar chart (rounded tops, dashed target) · horizontal bar with reference tick · bottom tab bar on mobile, top tabs on desktop.
+Stat tile (label, big number, unit, sub, meter) · session list · flag (icon + text) · segmented control · set-row input grid · quick-add chips · line chart (dots + 7-day line, dashed target) · bar chart (rounded tops, dashed target) · horizontal bar with reference tick · bottom tab bar on mobile, top tabs on desktop · bottom sheet (sticky title bar with back/close, scrim token `--scrim`; centered dialog on desktop) · chips (filter and swap; pressed = accent) · picker row (48px photo, name, muscles, info button) · suggestion box (target icon + text on `--accent-soft`) · suggested loads in accent until edited.
 
 ## Charts
 One axis per chart, thin marks, legend or direct label, hover/tap tooltip, colors from the series tokens in fixed order, dashed `--ink-3` line for targets.
