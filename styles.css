@@ -574,3 +574,10 @@ main:has(.workout-bar) { padding-bottom: 96px; }
 .reorder-list .icon-btn svg { width: 18px; height: 18px; }
 .reorder-list .icon-btn:disabled { opacity: 0.35; cursor: default; }
 .reorder-list .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Controls aren't text: a long press on a button, tab, chip or tappable row shouldn't start a selection.
+   Content (notes, meals, tables, reports, inputs) stays selectable so it can be copied or looked up. */
+button, .btn, .tab, .chip, .seg, .row-link, .link-btn, .icon-btn, .pick-row, .prog-row, .done-btn, .head-btn, .resume,
+.video-card, .video-link, .brand, .eyebrow, .pill, .day-badge, .photo-btn, .tabs {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}

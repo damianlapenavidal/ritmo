@@ -37,3 +37,6 @@ Stat tile (label, big number, unit, sub, meter) · session list · flag (icon + 
 
 ## Charts
 One axis per chart, thin marks, legend or direct label, hover/tap tooltip, colors from the series tokens in fixed order, dashed `--ink-3` line for targets.
+
+## Text selection
+Content stays selectable (notes, meals, tables, reports, inputs) so it can be copied or looked up. Controls and charts don't select on long press: buttons, tabs, chips, tappable rows, pills, charts and the week strip (`user-select: none` in `styles.css`). New controls go in that rule.
