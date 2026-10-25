@@ -355,7 +355,17 @@
     return { date: today(), type: tpl?.type === "conditioning" ? "conditioning" : "lift", session: tpl?.name || "", duration_min: "", notes: "", exercises: exercises.length ? exercises : tpl?.type === "conditioning" ? [] : [{ name: "", sets: [{ reps: "", load: "", rpe: "" }] }] };
   }
   const newMeal = () => ({ date: today(), meal: guessMeal(), kcal: "", protein_g: "", carbs_g: "", fat_g: "" });
-  const guessMeal = () => { const h = new Date().getHours(); return h < 11 ? "breakfast" : h < 16 ? "lunch" : h < 21 ? "dinner" : "snack"; };
+  // Meal windows come from profile.json -> food.meal_times ("HH:MM-HH:MM"). Inside a window = that meal;
+  // up to an hour after a window ends still counts as that meal (logging after eating); otherwise snack.
+  const MEAL_TIMES = { breakfast: "05:00-11:00", lunch: "11:00-16:00", dinner: "17:00-21:00" };
+  const guessMeal = (now = new Date()) => {
+    const mins = (t) => { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
+    const windows = Object.entries({ ...MEAL_TIMES, ...(S.data?.profile?.food?.meal_times || {}) })
+      .map(([meal, range]) => { const [a, b] = String(range).split("-"); return { meal, start: mins(a), end: mins(b) }; })
+      .filter((w) => Number.isFinite(w.start) && Number.isFinite(w.end));
+    const t = now.getHours() * 60 + now.getMinutes();
+    return (windows.find((w) => t >= w.start && t < w.end) || windows.find((w) => t >= w.end && t < w.end + 60) || { meal: "snack" }).meal;
+  };
 
   views.log = () => {
     const tabs = [["workout", "Workout"], ["meal", "Meal"], ["body", "Check-in"], ["test", "Benchmark"]];
