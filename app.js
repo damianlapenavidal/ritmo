@@ -520,11 +520,11 @@
       // Older estimates packed details into the name: "French toast (pan-fried in butter)".
       const shortName = (s) => String(s || "").replace(/\s*\(.*$/, "") || s;
       const parts = Array.isArray(r.breakdown) && r.breakdown.length
-        ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span class="mi-name"><span>${esc(shortName(b.name))}</span>${b.portion ? `<span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted">${Math.round(b.kcal || 0)}</span></li>`).join("")}</ul>`
+        ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span class="mi-name"><span>${esc(shortName(b.name))}</span>${b.portion ? `<span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted mi-kcal">${Math.round(b.kcal || 0)} kcal</span></li>`).join("")}</ul>`
         : r.items ? `<ul class="meal-items">${String(r.items).split(/,(?![^()]*\))/).map((s) => s.trim()).filter(Boolean).map((s) => `<li><span>${esc(s[0].toUpperCase() + s.slice(1))}</span></li>`).join("")}</ul>` : "";
       return `<li>
         <span><b class="cap">${esc(r.meal)}</b>${r.location ? ` <span class="muted small">· ${esc(r.location)}</span>` : ""}${ai ? `<br><span class="pill">AI estimate${r.breakdown?.some?.((b) => b.from_menu) ? " · menu" : ""}${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
-        <span class="dose">${Math.round(r.kcal || 0).toLocaleString()} kcal<br><span class="muted small">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
+        <span class="dose"><span class="nowrap">${Math.round(r.kcal || 0).toLocaleString()} kcal</span><br><span class="muted small nowrap">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
         ${parts}
         ${r.ai_comment ? `<span class="note">${esc(r.ai_comment)}</span>` : ""}
         <span class="row-actions"><button class="btn small ghost" data-act="edit-meal" data-idx="${idx}">Edit</button><button class="btn small ghost" data-act="delete-meal" data-idx="${idx}">Delete</button></span>
@@ -535,7 +535,7 @@
         <div class="totals">${cell("kcal", "Calories", "kcal")}${cell("protein_g", "Protein", "g")}${cell("carbs_g", "Carbs", "g")}${cell("fat_g", "Fat", "g")}</div>
         ${pend.length ? `<div class="stack pending-list">${pend.map((p) => `<div class="pending ${p.error ? "is-error" : ""}">
             ${p.thumb ? `<img src="${p.thumb}" alt="">` : ""}
-            <div><b>${esc(cap(p.meal))} photo</b><br><span class="small ${p.error ? "" : "muted"}">${p.error ? `${icon.warn} Couldn't estimate: ${esc(p.error)}` : "Estimating… usually about a minute"}</span></div>
+            <div><b>${esc(cap(p.meal))} photo</b><br><span class="small ${p.error ? "" : "muted"}">${p.error ? `${icon.warn} Couldn't estimate: ${esc(p.error)}` : "Estimating…"}</span></div>
             <button class="icon-btn" data-act="dismiss-pending" data-id="${esc(p.id)}" aria-label="Hide this photo">${icon.x}</button>
           </div>`).join("")}</div>` : ""}
         ${n.rows.length ? `<ul class="ex-list meal-list">${n.rows.map(row).join("")}</ul>` : pend.length ? "" : '<div class="empty">Nothing logged today</div>'}
