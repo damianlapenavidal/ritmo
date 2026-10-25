@@ -211,7 +211,7 @@
     if (!S.pending.length || !S.data) return [];
     const done = [];
     S.pending = S.pending.filter((p) => {
-      const hit = S.data.nutrition.find((r) => r.photo_id === p.id);
+      const hit = S.data.nutrition.find((r) => r.photo_id === p.id || r.request_id === p.id);
       if (hit) { done.push(hit); return false; }
       p.error = errors[p.id]?.error || null;
       return true;
@@ -242,23 +242,28 @@
     }, 15000);
   }
 
+  // A meal for the AI estimate: a photo, or (no photo) a typed description. Both go to inbox/meals/ in the private repo.
   async function sendPhoto() {
     const m = S.meal, ph = S.photo;
+    const text = !ph ? (m.description || "").trim() : "";
+    if (!ph && text.length < 3) throw new Error("Write what you ate");
+    const place = !m.location ? (m.place || "").trim() : "";
     const id = `${m.date}-${Date.now().toString(36)}`;
-    const thumb = await (async () => { try { const r = await fetch(ph.dataUrl); return await resizeImage(await r.blob(), 160, 0.7); } catch { return null; } })();
-    const entry = { id, date: m.date, meal: m.meal, note: (m.note || "").trim(), location: m.location || undefined, thumb, at: Date.now() };
+    const thumb = ph ? await (async () => { try { const r = await fetch(ph.dataUrl); return await resizeImage(await r.blob(), 160, 0.7); } catch { return null; } })() : null;
+    const entry = { id, date: m.date, meal: m.meal, note: (m.note || "").trim(), location: m.location || undefined, place: place || undefined, text: text || undefined, thumb, at: Date.now() };
     if (!live()) {
       S.pending.push(entry); savePending();
       setTimeout(() => {
-        S.data.nutrition.push({ date: m.date, meal: m.meal, items: "grilled chicken (1 breast), rice (1 cup), salad (1 bowl)", kcal: 520, protein_g: 48, carbs_g: 55, fat_g: 11, source: "photo-ai", photo_id: id, confidence: "medium", ai_comment: "Demo estimate: connect your repo for real ones.", ...(entry.location ? { location: entry.location } : {}) });
+        S.data.nutrition.push({ date: m.date, meal: m.meal, items: "grilled chicken (1 breast), rice (1 cup), salad (1 bowl)", kcal: 520, protein_g: 48, carbs_g: 55, fat_g: 11, source: text ? "text-ai" : "photo-ai", request_id: id, confidence: "medium", ai_comment: "Demo estimate: connect your repo for real ones.", ...(entry.location ? { location: entry.location } : {}), ...(place ? { place } : {}) });
         const done = resolvePending();
         if (done.length) toast(`Demo: meal estimated, ${done[0].kcal} kcal`);
         if (!["log", "settings"].includes(S.view)) render();
       }, 2500);
       return;
     }
-    const payload = { id, date: m.date, meal: m.meal, note: entry.note, ...(entry.location ? { location: entry.location } : {}), media_type: "image/jpeg", image_b64: ph.dataUrl.split(",")[1], uploaded_at: new Date().toISOString() };
-    await putFile(`inbox/meals/${id}.json`, JSON.stringify(payload), null, `photo: ${m.meal} ${m.date}`);
+    const payload = { id, date: m.date, meal: m.meal, ...(entry.location ? { location: entry.location } : {}), ...(place ? { place } : {}),
+      ...(ph ? { note: entry.note, media_type: "image/jpeg", image_b64: ph.dataUrl.split(",")[1] } : { description: text }), uploaded_at: new Date().toISOString() };
+    await putFile(`inbox/meals/${id}.json`, JSON.stringify(payload), null, `${ph ? "photo" : "meal"}: ${m.meal} ${m.date}`);
     S.pending.push(entry); savePending();
     schedulePoll();
   }
@@ -780,9 +785,17 @@
     const ph = S.photo;
     m.location ??= mealLocation();
     const where = halls().length ? `<div><div class="eyebrow" style="margin-bottom:6px">Where?</div><div class="seg" role="radiogroup" aria-label="Where are you eating?">${[...halls(), ""].map((h) => `<button type="button" data-act="pick-loc" data-v="${esc(h)}" aria-pressed="${m.location === h}">${esc(h || "Elsewhere")}</button>`).join("")}</div></div>` : "";
+    const placeField = halls().length && !m.location ? `<label class="field"><span>Place (optional)</span><input data-m="place" value="${esc(m.place || "")}" placeholder="e.g. All'Antico Vinaio, Boston" autocomplete="off"></label>` : "";
+    if (!ph && m.mode === "text") return `
+      <div class="photo-box">
+        ${where}${placeField}
+        <label class="field"><span>What did you eat?</span><textarea data-m="description" rows="3" placeholder="e.g. La Numero 1 sandwich, the whole thing, and a Coke">${esc(m.description || "")}</textarea></label>
+        <p class="small muted" style="margin:0">Say how much: whole, half, 2 slices, a large bowl.</p>
+        <div class="btn-row"><button type="button" class="btn primary" data-act="send-photo">Estimate with AI</button><button type="button" class="btn ghost" data-act="meal-mode" data-v="photo">Use a photo</button></div>
+      </div>`;
     return `
       <div class="photo-box">
-        ${where}
+        ${where}${placeField}
         ${ph ? `<img class="photo-preview" src="${ph.dataUrl}" alt="Your meal photo">` : ""}
         <div class="photo-actions">
           <label class="btn ${ph ? "" : "primary"} photo-btn">${icon.camera}<span>${ph ? "Retake" : "Take photo"}</span><input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only photo-input"></label>
@@ -790,7 +803,8 @@
         </div>
         ${ph ? `
           <label class="field"><span>Note for the AI (optional)</span><input data-m="note" value="${esc(m.note || "")}" placeholder="e.g. 2 scoops rice, ranch dressing, half eaten"></label>
-          <div class="btn-row"><button type="button" class="btn primary" data-act="send-photo">Estimate with AI</button><button type="button" class="btn ghost" data-act="clear-photo">Remove photo</button></div>` : ""}
+          <div class="btn-row"><button type="button" class="btn primary" data-act="send-photo">Estimate with AI</button><button type="button" class="btn ghost" data-act="clear-photo">Remove photo</button></div>`
+        : `<button type="button" class="btn ghost wide" data-act="meal-mode" data-v="text">No photo? Describe it</button>`}
       </div>`;
   }
 
@@ -890,14 +904,14 @@
     const pend = S.pending;
     const row = (r) => {
       const idx = S.data.nutrition.indexOf(r);
-      const ai = r.source === "photo-ai" || r.source === "photo-estimate";
+      const ai = ["photo-ai", "text-ai", "photo-estimate"].includes(r.source);
       // Older estimates packed details into the name: "French toast (pan-fried in butter)".
       const shortName = (s) => String(s || "").replace(/\s*\(.*$/, "") || s;
       const parts = Array.isArray(r.breakdown) && r.breakdown.length
         ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span class="mi-name"><span>${esc(shortName(b.name))}</span>${b.portion ? `<span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted mi-kcal">${Math.round(b.kcal || 0)} kcal</span></li>`).join("")}</ul>`
         : r.items ? `<ul class="meal-items">${String(r.items).split(/,(?![^()]*\))/).map((s) => s.trim()).filter(Boolean).map((s) => `<li><span>${esc(s[0].toUpperCase() + s.slice(1))}</span></li>`).join("")}</ul>` : "";
       return `<li>
-        <span><b class="cap">${esc(r.meal)}</b>${r.location ? ` <span class="muted small">· ${esc(r.location)}</span>` : ""}${ai ? `<br><span class="pill">AI estimate${r.breakdown?.some?.((b) => b.from_menu) ? " · menu" : ""}${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
+        <span><b class="cap">${esc(r.meal)}</b>${r.location || r.place ? ` <span class="muted small">· ${esc(r.location || r.place)}</span>` : ""}${ai ? `<br><span class="pill">AI estimate${r.source === "text-ai" ? " · no photo" : ""}${r.breakdown?.some?.((b) => b.from_menu) ? " · menu" : ""}${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
         <span class="dose"><span class="nowrap">${Math.round(r.kcal || 0).toLocaleString()} kcal</span><br><span class="muted small nowrap">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
         ${parts}
         ${r.ai_comment ? `<span class="note">${esc(r.ai_comment)}</span>` : ""}
@@ -909,7 +923,7 @@
         <div class="totals">${cell("kcal", "Calories", "kcal")}${cell("protein_g", "Protein", "g")}${cell("carbs_g", "Carbs", "g")}${cell("fat_g", "Fat", "g")}</div>
         ${pend.length ? `<div class="stack pending-list">${pend.map((p) => `<div class="pending ${p.error ? "is-error" : ""}">
             ${p.thumb ? `<img src="${p.thumb}" alt="">` : ""}
-            <div><b>${esc(cap(p.meal))} photo</b><br><span class="small ${p.error ? "" : "muted"}">${p.error ? `${icon.warn} Couldn't estimate: ${esc(p.error)}` : "Estimating…"}</span></div>
+            <div><b>${esc(cap(p.meal))}${p.text ? "" : " photo"}</b>${p.text ? `<br><span class="small">${esc(p.text.length > 60 ? p.text.slice(0, 57) + "…" : p.text)}</span>` : ""}<br><span class="small ${p.error ? "" : "muted"}">${p.error ? `${icon.warn} Couldn't estimate: ${esc(p.error)}` : "Estimating…"}</span></div>
             <button class="icon-btn" data-act="dismiss-pending" data-id="${esc(p.id)}" aria-label="Hide this photo">${icon.x}</button>
           </div>`).join("")}</div>` : ""}
         ${n.rows.length ? `<ul class="ex-list meal-list">${n.rows.map(row).join("")}</ul>` : pend.length ? "" : '<div class="empty">Nothing logged today</div>'}
@@ -1391,7 +1405,9 @@
     if (a === "pick-loc" && S.meal) {
       S.meal.location = t.dataset.v; store.set("ritmo.location", t.dataset.v);
       t.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === t));
+      render();
     }
+    if (a === "meal-mode" && S.meal) { S.meal.mode = t.dataset.v; render(); }
     if (a === "pick") {
       const grp = t.parentElement; grp.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === t));
       t.closest("form").querySelector(`input[name="${t.dataset.name}"]`).value = t.dataset.v;
@@ -1403,9 +1419,9 @@
       t.disabled = true; t.textContent = "Sending…";
       try {
         await sendPhoto();
-        toast(live() ? "Photo sent. Estimate ready in about a minute" : "Demo: estimating…");
+        toast(live() ? "Sent. The estimate is ready in about a minute" : "Demo: estimating…");
         S.photo = null; S.meal = null; go("food");
-      } catch (err) { toast(`Couldn't send the photo: ${err.message}`); t.disabled = false; t.textContent = "Estimate with AI"; }
+      } catch (err) { toast(err.message === "Write what you ate" ? err.message : `Couldn't send it: ${err.message}`); t.disabled = false; t.textContent = "Estimate with AI"; }
     }
     if (a === "dismiss-pending") { S.pending = S.pending.filter((p) => p.id !== t.dataset.id); savePending(); render(); }
     if (a === "edit-meal") {
