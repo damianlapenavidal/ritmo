@@ -48,7 +48,7 @@
   icon.chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
   // The coach is a Claude Project; the app can only open it. Weekly check-ins run as a scheduled task, so this is for questions.
   // claude.ai/project/* isn't a universal link (it opens Safari), so the button uses the claude:// scheme to reach the iPhone app.
-  // Saved as the project link; a pasted ".../new" link is accepted too. Ask coach opens <project>/new: a fresh chat inside the project.
+  // Saved as the project link; a pasted ".../new" link is accepted too. The Claude app doesn't open <project>/new deep links, so Ask coach opens the project page (its message box starts a new chat in the project).
   const coachUrl = (link) => { try { const u = new URL(String(link || "").trim()); const m = u.pathname.match(/^\/project\/([\w-]+)(?:\/new)?\/?$/); return u.protocol === "https:" && u.hostname === "claude.ai" && m ? `https://claude.ai/project/${m[1]}` : null; } catch { return null; } };
   const PHOTO_MAX = 1024; // long edge in px; enough detail for food, small upload
 
@@ -486,7 +486,7 @@
       </div>
       <section class="card"><div class="card-head"><h2>Coach</h2></div>
         ${coachUrl(d.profile.coach_project_url)
-          ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://") + "/new")}">${icon.chat}Ask coach</a>`
+          ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://"))}">${icon.chat}Ask coach</a>`
           : `<a class="btn coach-btn" href="#settings">${icon.chat}Add your coach link</a>
              <p class="small muted coach-hint">Paste your Workout + Nutrition project link in Settings to ask the coach from here.</p>`}
         ${r.flags?.length ? `<div class="coach-flags">${r.flags.map((f) => `<div class="flag ${f.level === "warn" ? "warn" : "info"}">${f.level === "warn" ? icon.warn : icon.info}<span><span class="sr-only">${f.level}: </span>${esc(f.msg)}</span></div>`).join("")}</div>` : ""}
