@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-25T21:55:51",
+  "generated": "2026-10-25T22:36:32",
   "as_of": "2026-10-19",
   "phase": "phase-1",
   "phase_week": 5,
@@ -274,7 +274,11 @@
   "steps_7d": {
     "days_synced": 6,
     "avg": 9143,
-    "max": 10586
+    "max": 10586,
+    "prev_avg": 9340,
+    "change_pct": -2,
+    "training_days_avg": 8577,
+    "other_days_avg": 9709
   },
   "steps_daily": {
     "2026-09-15": 7786,

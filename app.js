@@ -42,6 +42,9 @@
   icon.play = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z" fill="currentColor"/></svg>';
   icon.link = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
   icon.box = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>';
+  icon.up = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
+  icon.down = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  icon.sort = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true"><path d="M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4"/></svg>';
   icon.chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
   // The coach is a Claude Project; the app can only open it. Weekly check-ins run as a scheduled task, so this is for questions.
   // claude.ai/project/* isn't a universal link (it opens Safari), so the button uses the claude:// scheme to reach the iPhone app.
@@ -883,21 +886,36 @@
   }
 
   // ---- progress ----
-  views.progress = () => `
-    <h1>Progress</h1>
-    <section class="card"><div class="card-head"><h2>Recent sessions</h2>${S.data.workouts.length > 3 ? '<button type="button" class="link-btn" data-act="sessions-all">See all</button>' : ""}</div>${sessionsList(3)}</section>
-    <section class="card"><div class="card-head"><h2>Bodyweight</h2><span class="small muted">kg</span></div><div id="ch-weight"></div>
-      <div class="legend"><span><i style="background:var(--series-1)"></i>7-day average</span><span><i style="background:var(--series-1);opacity:.45;height:8px;width:8px;border-radius:50%"></i>Daily weigh-in</span></div></section>
-    <section class="card"><div class="card-head"><h2>Strength</h2><select id="lift-pick" style="width:auto;min-height:36px" aria-label="Lift"></select></div><div id="ch-lift"></div>
-      <p class="small muted">Estimated 1-rep max in ${loadUnit()} (Epley formula), from your best set each session.</p></section>
-    <div class="grid-2">
-      <section class="card"><div class="card-head"><h2>Sessions per week</h2></div><div id="ch-sessions"></div></section>
-      <section class="card"><div class="card-head"><h2>Conditioning minutes</h2></div><div id="ch-cond"></div></section>
-    </div>
-    <section class="card"><div class="card-head"><h2>Steps</h2><span class="small muted">${stepsHead()}</span></div><div id="ch-steps"></div>
-      <p class="small muted">${Object.keys(S.data.steps || {}).length ? "From your iPhone's Health app, synced at night. Casual walking counts." : "Not synced yet. Set up the iPhone Shortcut in your repo's SETUP.md (section 7) to send your daily steps."}</p></section>
-    <section class="card"><div class="card-head"><h2>Hard sets this week</h2><span class="small muted">line = 10-set reference</span></div><div id="muscles"></div></section>
-    <section class="card"><div class="card-head"><h2>Benchmarks</h2></div><div id="bench" class="table-wrap"></div></section>`;
+  // Sections can be put in any order (Reorder button). The order is kept on this phone (localStorage); new
+  // sections that aren't in a saved order go at the end.
+  const PROGRESS = {
+    sessions: { title: "Recent sessions", html: () => `<section class="card"><div class="card-head"><h2>Recent sessions</h2>${S.data.workouts.length > 3 ? '<button type="button" class="link-btn" data-act="sessions-all">See all</button>' : ""}</div>${sessionsList(3)}</section>` },
+    weight: { title: "Bodyweight", html: () => `<section class="card"><div class="card-head"><h2>Bodyweight</h2><span class="small muted">kg</span></div><div id="ch-weight"></div>
+      <div class="legend"><span><i style="background:var(--series-1)"></i>7-day average</span><span><i style="background:var(--series-1);opacity:.45;height:8px;width:8px;border-radius:50%"></i>Daily weigh-in</span></div></section>` },
+    strength: { title: "Strength", html: () => `<section class="card"><div class="card-head"><h2>Strength</h2><select id="lift-pick" style="width:auto;min-height:36px" aria-label="Lift"></select></div><div id="ch-lift"></div>
+      <p class="small muted">Estimated 1-rep max in ${loadUnit()} (Epley formula), from your best set each session.</p></section>` },
+    perweek: { title: "Sessions per week", html: () => `<section class="card"><div class="card-head"><h2>Sessions per week</h2></div><div id="ch-sessions"></div></section>` },
+    conditioning: { title: "Conditioning minutes", html: () => `<section class="card"><div class="card-head"><h2>Conditioning minutes</h2></div><div id="ch-cond"></div></section>` },
+    steps: { title: "Steps", html: () => `<section class="card"><div class="card-head"><h2>Steps</h2><span class="small muted">${stepsHead()}</span></div><div id="ch-steps"></div>
+      <p class="small muted">${Object.keys(S.data.steps || {}).length ? "From your iPhone's Health app, synced at night. Casual walking counts." : "Not synced yet. Set up the iPhone Shortcut in your repo's SETUP.md (section 7) to send your daily steps."}</p></section>` },
+    sets: { title: "Hard sets this week", html: () => `<section class="card"><div class="card-head"><h2>Hard sets this week</h2><span class="small muted">line = 10-set reference</span></div><div id="muscles"></div></section>` },
+    bench: { title: "Benchmarks", html: () => `<section class="card"><div class="card-head"><h2>Benchmarks</h2></div><div id="bench" class="table-wrap"></div></section>` },
+  };
+  function progressOrder() {
+    const saved = (store.get("ritmo.progressOrder", []) || []).filter((k) => PROGRESS[k]);
+    return [...new Set([...saved, ...Object.keys(PROGRESS)])];
+  }
+  views.progress = () => {
+    const order = progressOrder();
+    const head = `<div class="page-head"><h1>Progress</h1><button type="button" class="btn small${S.reorder ? " primary" : ""}" data-act="progress-reorder">${S.reorder ? "Done" : `${icon.sort}Reorder`}</button></div>`;
+    if (!S.reorder) return head + order.map((k) => PROGRESS[k].html()).join("");
+    return `${head}
+      <p class="small muted">Move the sections you check most to the top. Saved on this phone.</p>
+      <ol class="reorder-list">${order.map((k, i) => `<li><span>${esc(PROGRESS[k].title)}</span>
+        <button type="button" class="icon-btn" data-act="progress-move" data-k="${k}" data-d="-1" aria-label="Move ${esc(PROGRESS[k].title)} up"${i === 0 ? " disabled" : ""}>${icon.up}</button>
+        <button type="button" class="icon-btn" data-act="progress-move" data-k="${k}" data-d="1" aria-label="Move ${esc(PROGRESS[k].title)} down"${i === order.length - 1 ? " disabled" : ""}>${icon.down}</button></li>`).join("")}</ol>
+      ${store.get("ritmo.progressOrder", null) ? '<button type="button" class="btn ghost wide" data-act="progress-reset">Back to the default order</button>' : ""}`;
+  };
 
   function stepsHead() {
     const st = S.data.steps || {}, iso = today();
@@ -905,6 +923,7 @@
     return vals.length ? `${Math.round(vals.reduce((a, b) => a + b, 0) / vals.length).toLocaleString()} a day, last 7 days` : "";
   }
   function drawProgress() {
+    if (S.reorder) return; // reorder mode shows names only
     const d = S.data;
     const st = d.steps || {};
     if (Object.keys(st).length) {
@@ -1377,7 +1396,7 @@
     if (S.data) after[v]?.(); // charts need data; skip while loading
   }
   function go(view) { location.hash = view; }
-  window.addEventListener("hashchange", () => { S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today"; if (S.view !== "log" && S.meal?.editing) S.meal = null; if (S.sheet.length) { S.sheet = []; renderSheet(); } render(); window.scrollTo(0, 0); });
+  window.addEventListener("hashchange", () => { S.view = (location.hash.slice(1) || "today"); if (!views[S.view]) S.view = "today"; S.reorder = false; if (S.view !== "log" && S.meal?.editing) S.meal = null; if (S.sheet.length) { S.sheet = []; renderSheet(); } render(); window.scrollTo(0, 0); });
 
   // A meal edit only survives taps on its own fields and Save; any other button, link or tab drops it.
   document.addEventListener("click", (e) => {
@@ -1467,6 +1486,16 @@
     if (a === "how-info") openSheet({ type: "how" }, { opener: t });
     if (a === "tests-info") openSheet({ type: "tests" }, { opener: t });
     if (a === "report-full") openSheet({ type: "report" }, { opener: t });
+    if (a === "progress-reorder") { S.reorder = !S.reorder; render(); }
+    if (a === "progress-move") {
+      const order = progressOrder(), i = order.indexOf(t.dataset.k), j = i + +t.dataset.d;
+      if (i >= 0 && j >= 0 && j < order.length) {
+        [order[i], order[j]] = [order[j], order[i]];
+        store.set("ritmo.progressOrder", order); render();
+        document.querySelector(`[data-act="progress-move"][data-k="${t.dataset.k}"][data-d="${t.dataset.d}"]:not(:disabled)`)?.focus({ preventScroll: true });
+      }
+    }
+    if (a === "progress-reset") { store.set("ritmo.progressOrder", null); render(); }
     if (a === "sessions-all") openSheet({ type: "sessions" }, { opener: t });
     // sheets
     if (a === "sheet-close") closeSheet();
