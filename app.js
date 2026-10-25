@@ -1437,10 +1437,17 @@
 
   document.addEventListener("change", async (e) => {
     if (e.target.id === "session-pick" && S.draft) {
-      const dr = S.draft, fresh = draftFor(e.target.value);
-      // nothing logged yet: load that session; otherwise keep the sets and just rename it
-      if (dr.editing || draftProgress(dr)) { Object.assign(dr, { choice: fresh.choice || e.target.value, session: fresh.session, type: fresh.type }); if (!dr.editing) toast("Kept what you already logged"); }
-      else S.draft = { ...fresh, choice: e.target.value, date: dr.date, startedAt: dr.startedAt };
+      // Load the new session's blocks. Keep only what was actually logged (ticked or typed sets, filled cardio);
+      // untouched blocks from the old session go, so "Walk" never still shows Saturday's intervals.
+      const dr = S.draft, fresh = { ...draftFor(e.target.value), choice: e.target.value };
+      const logged = (x) => x.sets.some((st) => st.done || st.reps !== "" || st.rpe !== "" || (st.load !== "" && !st.auto));
+      const keptEx = dr.exercises.filter(logged), keptDr = (dr.drills || []).filter(drillTouched);
+      fresh.exercises = [...keptEx, ...fresh.exercises.filter((x) => !keptEx.some((k) => k.name === x.name))];
+      fresh.drills = [...keptDr, ...(fresh.drills || []).filter((b) => !keptDr.some((k) => k.kind === b.kind && k.name === b.name))];
+      for (const k of ["date", "startedAt", "restFrom", "duration_min", "rpe", "notes", "editing", "from"]) if (dr[k] !== undefined) fresh[k] = dr[k];
+      if (dr.type === "sport" && fresh.type === "sport") fresh.sport = dr.sport;
+      S.draft = fresh;
+      if (keptEx.length || keptDr.length) toast("Kept what you already logged");
       saveDraft(); render();
       return;
     }
