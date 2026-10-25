@@ -39,6 +39,9 @@
   icon.back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>';
   icon.search = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>';
   icon.target = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>';
+  icon.play = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z" fill="currentColor"/></svg>';
+  icon.link = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+  icon.box = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>';
   icon.chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
   // The coach is a Claude Project; the app can only open it. Weekly check-ins run as a scheduled task, so this is for questions.
   // claude.ai/project/* isn't a universal link (it opens Safari), so the button uses the claude:// scheme to reach the iPhone app.
@@ -178,13 +181,17 @@
   }
 
   async function loadAll() {
-    const [profile, program, exercises, w, n, b, t, report, weekly, programs] = await Promise.all([
+    const [profile, program, exercises, w, n, b, t, report, weekly, programs, st] = await Promise.all([
       readJSON("data/profile.json", {}), readJSON("data/program.json", {}), readJSON("data/exercises.json", {}),
       readText("logs/workouts.jsonl"), readText("logs/nutrition.jsonl"), readText("logs/body.jsonl"), readText("logs/tests.jsonl"),
       readJSON("reports/latest.json", null), latestWeekly(), readJSON("data/programs/index.json", null).catch(() => null),
+      readText("logs/steps.jsonl").catch(() => null),
     ]);
     delete exercises._note;
-    S.data = { profile, program, exercises, workouts: parseJsonl(w), nutrition: parseJsonl(n), body: parseJsonl(b), tests: parseJsonl(t), report, weekly, programs };
+    // Phone steps (iPhone Shortcut → Action). A day can sync more than once: the last line for a date wins.
+    const steps = {};
+    for (const r of parseJsonl(st)) if (r.date && Number.isFinite(+r.steps)) steps[String(r.date).slice(0, 10)] = +r.steps;
+    S.data = { profile, program, exercises, workouts: parseJsonl(w), nutrition: parseJsonl(n), body: parseJsonl(b), tests: parseJsonl(t), report, weekly, programs, steps };
     for (const q of S.queue) S.data[KEYS[q.kind]].push(q.obj); // show unsynced entries too
     S.loadedAt = Date.now();
     resolvePending(await readJSON("inbox/errors.json", {}).catch(() => ({})));
@@ -398,10 +405,32 @@
     const act = known ? `data-act="ex-info" data-name="${esc(b.exercise)}"` : `data-act="drill-info" data-dow="${dow}" data-k="${k}"`;
     return `<li><button type="button" class="row-link" ${act}><span class="row-name">${esc(b.exercise)}</span><span class="dose">${esc(b.sets)} × ${esc(b.reps)}${load}</span></button></li>`;
   }
+  // A session in the order it's done, split into parts so the shape is clear: jumps and sprints first (fresh),
+  // then the main lifts, then the small extras, then cardio. Only contiguous runs are grouped; the order never changes.
+  const GROUPS_ORDER = { power: "Jumps + speed", strength: "Strength", extras: "Extras", cardio: "Cardio" };
+  function blockGroup(name) {
+    const info = S.data.exercises[name];
+    if (!info) { const k = drillKind(name); return k === "sprints" || k === "agility" ? "power" : k === "other" ? "strength" : "cardio"; }
+    return info.pattern === "plyo" ? "power" : ["isolation", "core"].includes(info.pattern) ? "extras" : "strength";
+  }
+  function groupBlocks(blocks) {
+    const out = [], keys = (blocks || []).map((b) => blockGroup(b.exercise));
+    // a small move between main lifts (Lateral Raise before Hip Thrust) stays in Strength; Extras are the tail
+    const lastStrength = keys.lastIndexOf("strength");
+    keys.forEach((g, k) => { if (g === "extras" && k < lastStrength) keys[k] = "strength"; });
+    (blocks || []).forEach((b, k) => {
+      const g = keys[k], last = out[out.length - 1];
+      if (last && last.key === g) last.items.push({ b, k }); else out.push({ key: g, items: [{ b, k }] });
+    });
+    for (const g of out) g.label = g.key === "cardio" && out.length > 1 && g === out[out.length - 1] ? "Finisher" : GROUPS_ORDER[g.key];
+    return out;
+  }
+  const groupHead = (label) => `<li class="grp"><span class="eyebrow">${esc(label)}</span></li>`;
   function sessionList(sess, dow, withWarmup = true) {
-    return `<ul class="ex-list tap-list">
+    const groups = groupBlocks(sess.blocks), heads = groups.length > 1;
+    return `<ul class="ex-list tap-list${heads ? " grouped" : ""}">
       ${withWarmup && sess.type === "lift" && S.data.program.warmup ? `<li><button type="button" class="row-link" data-act="warmup-info"><span class="row-name">Warm-up</span><span class="dose muted">10 min</span></button></li>` : ""}
-      ${sess.blocks.map((b, k) => sessionRow(b, k, dow)).join("")}</ul>`;
+      ${groups.map((g) => (heads ? groupHead(g.label) : "") + g.items.map(({ b, k }) => sessionRow(b, k, dow)).join("")).join("")}</ul>`;
   }
   // Banner for a workout that's been started or partly logged (it's saved on the phone).
   function draftBanner() {
@@ -865,11 +894,23 @@
       <section class="card"><div class="card-head"><h2>Sessions per week</h2></div><div id="ch-sessions"></div></section>
       <section class="card"><div class="card-head"><h2>Conditioning minutes</h2></div><div id="ch-cond"></div></section>
     </div>
+    <section class="card"><div class="card-head"><h2>Steps</h2><span class="small muted">${stepsHead()}</span></div><div id="ch-steps"></div>
+      <p class="small muted">${Object.keys(S.data.steps || {}).length ? "From your iPhone's Health app, synced at night. Casual walking counts." : "Not synced yet. Set up the iPhone Shortcut in your repo's SETUP.md (section 7) to send your daily steps."}</p></section>
     <section class="card"><div class="card-head"><h2>Hard sets this week</h2><span class="small muted">line = 10-set reference</span></div><div id="muscles"></div></section>
     <section class="card"><div class="card-head"><h2>Benchmarks</h2></div><div id="bench" class="table-wrap"></div></section>`;
 
+  function stepsHead() {
+    const st = S.data.steps || {}, iso = today();
+    const vals = Array.from({ length: 7 }, (_, i) => st[addDays(iso, -i)]).filter((v) => v != null);
+    return vals.length ? `${Math.round(vals.reduce((a, b) => a + b, 0) / vals.length).toLocaleString()} a day, last 7 days` : "";
+  }
   function drawProgress() {
     const d = S.data;
+    const st = d.steps || {};
+    if (Object.keys(st).length) {
+      const days = Array.from({ length: 14 }, (_, i) => addDays(today(), i - 13));
+      Charts.bars($("#ch-steps"), { label: "Steps per day", color: "var(--series-3)", height: 180, bars: days.map((s) => ({ label: new Date(s + "T12:00:00").toLocaleDateString(undefined, { weekday: "narrow" }), title: Charts.fmtDate(s), value: st[s] || 0 })), yFmt: (v) => Math.round(v).toLocaleString() });
+    }
     const w = d.body.filter((b) => b.weight_kg).map((b) => ({ date: b.date.slice(0, 10), y: +b.weight_kg }));
     Charts.line($("#ch-weight"), { label: "Bodyweight", series: [{ name: "Daily", color: "var(--series-1)", points: w, dots: true, line: false }, { name: "7-day avg", color: "var(--series-1)", points: rolling(w) }], yFmt: (v) => v.toFixed(1) });
 
@@ -911,10 +952,11 @@
         ? `<ul class="meal-items">${r.breakdown.map((b) => `<li><span class="mi-name"><span>${esc(shortName(b.name))}</span>${b.portion ? `<span class="muted">${esc(b.portion)}</span>` : ""}</span><span class="muted mi-kcal">${Math.round(b.kcal || 0)} kcal</span></li>`).join("")}</ul>`
         : r.items ? `<ul class="meal-items">${String(r.items).split(/,(?![^()]*\))/).map((s) => s.trim()).filter(Boolean).map((s) => `<li><span>${esc(s[0].toUpperCase() + s.slice(1))}</span></li>`).join("")}</ul>` : "";
       return `<li>
-        <span><b class="cap">${esc(r.meal)}</b>${r.location || r.place ? ` <span class="muted small">· ${esc(r.location || r.place)}</span>` : ""}${ai ? `<br><span class="pill">AI estimate${r.source === "text-ai" ? " · no photo" : ""}${r.breakdown?.some?.((b) => b.from_menu) ? " · menu" : ""}${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
+        <span><b class="cap">${esc(r.meal)}</b>${r.location || r.place ? ` <span class="muted small">· ${esc(r.location || r.place)}</span>` : ""}${ai ? `<br><span class="pill">AI estimate${r.source === "text-ai" ? " · no photo" : ""}${r.breakdown?.some?.((b) => b.from_menu) ? " · menu" : ""}${r.breakdown?.some?.((b) => b.from_web) || r.sources?.length ? " · web" : ""}${r.confidence ? ` · ${esc(r.confidence)}` : ""}${r.edited ? " · edited" : ""}</span>` : ""}</span>
         <span class="dose"><span class="nowrap">${Math.round(r.kcal || 0).toLocaleString()} kcal</span><br><span class="muted small nowrap">${Math.round(r.protein_g || 0)}P · ${Math.round(r.carbs_g || 0)}C · ${Math.round(r.fat_g || 0)}F</span></span>
         ${parts}
         ${r.ai_comment ? `<span class="note">${esc(r.ai_comment)}</span>` : ""}
+        ${Array.isArray(r.sources) && r.sources.length ? `<span class="note sources">Sources: ${r.sources.filter((x) => /^https:\/\//.test(x?.url || "")).slice(0, 3).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title || new URL(x.url).hostname)}${icon.link}</a>`).join(", ")}</span>` : ""}
         <span class="row-actions"><button class="btn small ghost" data-act="edit-meal" data-idx="${idx}">Edit</button><button class="btn small ghost" data-act="delete-meal" data-idx="${idx}">Delete</button></span>
       </li>`;
     };
@@ -948,17 +990,57 @@
   }
 
   // ---- plan ----
-  function md(text) {
-    const lines = (text || "").split("\n"); let html = "", inList = false;
-    const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/_(.+?)_/g, "<i>$1</i>");
+  // Small Markdown: headings, paragraphs, bullet and numbered lists, checkboxes, tables, bold, italics, https links.
+  // kv: list items written "**Label:** value" become label/value pairs (coach notes' "How it went" and "Targets").
+  function md(text, { kv = false } = {}) {
+    const lines = (text || "").split("\n"); let html = "", list = null, table = null;
+    const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])_(.+?)_(?=$|[\s).,])/g, "$1<i>$2</i>")
+      .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    const cells = (l) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+    const close = () => { if (list) { html += `</${list}>`; list = null; } if (table) { html += "</tbody></table></div>"; table = null; } };
+    const item = (raw) => {
+      const box = raw.match(/^\[( |x)\]\s+(.*)/i);
+      if (box) return `<li class="todo${box[1] !== " " ? " is-done" : ""}">${box[1] !== " " ? icon.check : icon.box}<span>${inline(box[2])}</span></li>`;
+      const pair = kv && raw.match(/^\*\*(.+?):?\*\*:?\s*(.*)$/);
+      return pair ? `<li class="kv"><span class="k">${inline(pair[1])}</span><span class="v">${inline(pair[2])}</span></li>` : `<li>${inline(raw)}</li>`;
+    };
     for (const l of lines) {
-      if (/^\s*[-*] /.test(l)) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(l.replace(/^\s*[-*] /, ""))}</li>`; continue; }
-      if (inList) { html += "</ul>"; inList = false; }
+      if (/^\s*\|.*\|\s*$/.test(l)) {
+        if (/^\s*\|[\s:|-]+\|\s*$/.test(l)) continue; // separator row
+        if (!table) { close(); html += `<div class="table-wrap"><table class="md-table"><thead><tr>${cells(l).map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>`; table = true; continue; }
+        html += `<tr>${cells(l).map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`; continue;
+      }
+      const ul = l.match(/^\s*[-*] (.*)/), ol = l.match(/^\s*\d+[.)] (.*)/);
+      if (ul || ol) {
+        const tag = ul ? "ul" : "ol";
+        if (list !== tag) { close(); html += `<${tag}>`; list = tag; }
+        html += item((ul || ol)[1]); continue;
+      }
+      close();
       const h = l.match(/^(#{1,3}) (.*)/);
       if (h) html += `<h${h[1].length + 1}>${inline(h[2])}</h${h[1].length + 1}>`;
       else if (l.trim()) html += `<p>${inline(l)}</p>`;
     }
-    return html + (inList ? "</ul>" : "");
+    close();
+    return html;
+  }
+  // Coach notes (format: the private repo's knowledge/coach-notes.md): each "### " section gets its own look.
+  function coachNotesHtml(text) {
+    const parts = ("\n" + text).split(/\n### /);
+    const intro = parts.shift().trim();
+    return (intro ? `<div class="md">${md(intro)}</div>` : "") + parts.map((sec) => {
+      const nl = sec.indexOf("\n"), title = (nl < 0 ? sec : sec.slice(0, nl)).trim(), body = nl < 0 ? "" : sec.slice(nl + 1).trim();
+      const slug = title.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
+      if (slug === "verdict") return `<div class="cn-verdict">${icon.target}<div class="md">${md(body)}</div></div>`;
+      return `<section class="cn cn-${esc(slug)}"><h3>${esc(title)}</h3><div class="md">${md(body, { kv: ["how-it-went", "targets"].includes(slug) })}</div></section>`;
+    }).join("");
+  }
+  // "2026-W44.md" -> "Oct 26" (that ISO week's Monday)
+  function weekOf(name) {
+    const m = String(name || "").match(/(\d{4})-W(\d{2})/);
+    if (!m) return "";
+    const jan4 = new Date(Date.UTC(+m[1], 0, 4)), mon = new Date(jan4 - ((jan4.getUTCDay() + 6) % 7) * 864e5 + (+m[2] - 1) * 7 * 864e5);
+    return mon.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
   }
   // Coach notes from the latest weekly report ("## Coach notes" section), without the placeholder line.
   function coachNotes() {
@@ -978,15 +1060,18 @@
     return `<div><div class="eyebrow">${esc(phaseName(p.phase || ""))}${wk > 0 ? ` · week ${wk} of ${p.weeks}` : wk != null && wk <= 0 ? ` · starts ${esc(fmtDay(S.data.profile.phase.start_date))}` : ""}</div><h1>${esc(phaseTitle || p.title || "Plan")}</h1>
         ${wk > 0 && p.intensity_by_week?.[wk] ? `<p class="subline">This week: <button type="button" class="link-btn" data-act="effort-info">${esc(p.intensity_by_week[wk])}</button></p>` : ""}</div>
       <section class="card"><div class="card-head"><h2>The week</h2></div>
-        <ul class="ex-list tap-list">${order.map((k) => {
+        <ul class="ex-list tap-list week-list">${order.map((k) => {
           const d = p.week_template?.[k] || {}, rest = !d.blocks?.length;
-          const inner = `<span class="row-name"><b class="day">${k}</b>${esc(rest ? (/busy/i.test(d.name || "") ? "Rest (busy)" : "Rest") : splitName(d.name)[0])}${k === dow ? ' <span class="pill">today</span>' : ""}</span>${rest ? "" : icon.chevron}`;
+          const [nm, focus] = splitName(d.name);
+          const sub = rest ? "" : [focus, d.type === "lift" ? `${d.blocks.length} exercises` : ""].filter(Boolean).join(" · ");
+          const inner = `<b class="day">${k}</b><span class="row-name">${esc(rest ? (/busy/i.test(d.name || "") ? "Rest (busy)" : "Rest") : nm)}${k === dow ? ' <span class="pill">today</span>' : ""}${sub ? `<span class="small muted row-sub">${esc(sub)}</span>` : ""}</span>${rest ? "" : icon.chevron}`;
           return `<li>${rest ? `<div class="row-link is-static">${inner}</div>` : `<button type="button" class="row-link" data-act="day-info" data-dow="${k}">${inner}</button>`}</li>`;
         }).join("")}</ul>
         <div class="link-row"><button type="button" class="link-btn" data-act="how-info">How weights go up</button><button type="button" class="link-btn" data-act="tests-info">Tests</button></div>
       </section>
       <section class="card"><div class="card-head"><h2>Coach notes</h2>${S.data.weekly ? `<button type="button" class="link-btn" data-act="report-full">Full report</button>` : ""}</div>
-        ${notes ? `<div class="md">${md(notes)}</div>` : `<p class="muted" style="margin:0">Your coach's notes show up here after the Monday check-in.</p>`}</section>
+        ${notes && weekOf(S.data.weekly?.name) ? `<p class="small muted cn-week">Week of ${esc(weekOf(S.data.weekly.name))}</p>` : ""}
+        ${notes ? `<div class="coach-notes">${coachNotesHtml(notes)}</div>` : `<p class="muted" style="margin:0">Your coach's notes show up here after the Monday check-in.</p>`}</section>
       ${progs.length ? `<section class="card"><div class="card-head"><h2>Programs</h2></div>
         <ul class="prog-list">${progs.map((m) => `<li><button type="button" class="prog-row" data-act="program" data-id="${esc(m.id)}">
           <span><b>${esc(splitName(m.title)[1] || m.title)}</b>${m.id === activeId ? ` <span class="pill">${icon.check} Now</span>` : ""}<br><span class="small muted">${esc(phaseName(m.phase || ""))} · ${esc(m.days || "")}</span></span>${icon.chevron}</button></li>`).join("")}</ul></section>` : ""}`;
@@ -1058,6 +1143,14 @@
   // Library-backed parts render once the library arrives (first open only).
   const whenLibrary = (s) => { if (!S.lib) ensureLibrary().then(() => { if (topSheet() === s) renderSheet(); }).catch(() => { s.libError = true; if (topSheet() === s) renderSheet(); }); };
 
+  // A how-to video: the coach's pick (exercises.json "video", https only) or a YouTube search. The library has
+  // no photos for some moves (Pogo Hops, Copenhagen Plank...), so they get the video instead.
+  const videoUrl = (name, info, extra = "exercise form") => {
+    const own = String(info?.video || "");
+    return /^https:\/\//.test(own) ? own : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} ${extra}`)}`;
+  };
+  const videoCard = (name, url) => `<a class="video-card" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span class="video-ico">${icon.play}</span><span><b>Watch how it's done</b><span class="small muted">Short videos of ${esc(name)} on YouTube</span></span>${icon.link}</a>`;
+
   sheets.exercise = (s) => {
     const info = exInfo(s.name, s.ref);
     const ref = info.ref || s.ref;
@@ -1073,13 +1166,15 @@
     const tags = [...new Set(info.muscles?.length ? info.muscles : lib?.groups || [])];
     const pick = S.sheet.find((x) => x.type === "picker");
     const shortDate = (iso) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const video = videoUrl(s.name, info);
     const body = `
-      ${imgs.length ? `<div class="ex-imgs">${imgs.map((p, k) => `<img src="${esc(imgUrl(p))}" alt="${esc(s.name)}, ${k ? "end" : "start"} position" width="850" height="1275" decoding="async">`).join("")}</div>`
-        : ref && !S.lib && !s.libError ? '<div class="ex-imgs" aria-hidden="true"><span></span><span></span></div>' : ""}
+      ${imgs.length ? `<div class="ex-imgs">${imgs.map((p, k) => `<img src="${esc(imgUrl(p))}" alt="${esc(s.name)}, ${k ? "end" : "start"} position" width="850" height="1275" decoding="async">`).join("")}</div>
+        <a class="video-link" href="${esc(video)}" target="_blank" rel="noopener noreferrer">${icon.play}Watch a video</a>`
+        : ref && !S.lib && !s.libError ? '<div class="ex-imgs" aria-hidden="true"><span></span><span></span></div>' : videoCard(s.name, video)}
       ${tags.length || lib ? `<div class="tag-row">${tags.map((m) => `<span class="pill cap">${esc(m)}</span>`).join("")}${lib?.equipment && lib.equipment !== "other" ? `<span class="pill ghost cap">${esc(lib.equipment)}</span>` : ""}${lib?.level ? `<span class="pill ghost cap">${esc(lib.level)}</span>` : ""}</div>` : ""}
       ${s.pick && pick ? `<button type="button" class="btn primary wide" data-act="pick-ex" data-name="${esc(s.name)}" data-ref="${esc(ref || "")}">${pick.mode === "swap" ? `Swap in for ${esc(pick.from)}` : "Add to workout"}</button>` : ""}
       ${sg && sg.kind !== "none" ? `<section><h3>Today</h3>
-        <div class="target-line"><b>${sg.kind === "first" ? "Find your weight" : esc([sg.load != null ? sg.short : "", sg.targetReps ? `${sg.load != null ? "× " : ""}${sg.targetReps}${sg.load != null ? "" : "+"} reps` : ""].filter(Boolean).join(" "))}</b></div>
+        <div class="target-line"><b>${sg.kind === "first" ? (info.step_lb === 0 ? "Learn the move" : "Find your weight") : esc([sg.load != null ? sg.short : "", sg.targetReps ? `${sg.load != null ? "× " : ""}${sg.targetReps}${sg.load != null ? "" : "+"} reps` : ""].filter(Boolean).join(" "))}</b></div>
         <p class="small muted">${esc(sg.text)}</p>
         ${sg.last ? `<p class="small muted">Last time (${esc(fmtDay(sg.last.date))}): ${esc(sg.last.text)}</p>` : ""}</section>` : ""}
       ${info.cues?.length ? `<section><h3>Coach cues</h3><ul class="cues">${info.cues.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}
@@ -1142,14 +1237,32 @@
     const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const rpes = Object.values(p.rpe_by_week || {}).map(Number);
     const phaseChange = p.phase && p.phase !== S.data.profile?.phase?.current;
+    const days = order.map((k) => ({ k, d: p.week_template?.[k] || {} }));
+    const train = days.filter(({ d }) => d.blocks?.length), rest = days.filter(({ d }) => !d.blocks?.length);
+    const gymDays = train.filter(({ d }) => d.type === "lift").map(({ k }) => k);
+    const short = (d) => (d.type === "lift" ? splitName(d.name)[0].replace(/^Gym\s+/i, "").split(/\s+/)[0] : d.blocks?.length ? "Cardio" : "Rest");
+    const fact = (label, value) => (value ? `<div><span class="label">${esc(label)}</span><b>${esc(value)}</b></div>` : "");
+    const restNote = (d) => (/busy/i.test(d.name || "") ? "busy" : /walk/i.test(d.name || "") ? "easy walk" : "");
     const body = `
-      <p>${esc(meta.summary || "")}</p>
-      <div class="tag-row"><span class="pill">${esc(phaseName(p.phase || ""))}</span>${meta.days ? `<span class="pill ghost">${esc(meta.days)}</span>` : ""}${p.weeks ? `<span class="pill ghost">${esc(p.weeks)} weeks</span>` : ""}${rpes.length ? `<span class="pill ghost">RPE ${esc(Math.min(...rpes))}-${esc(Math.max(...rpes))}</span>` : ""}${p.deload_weeks?.length ? `<span class="pill ghost">Deload wk ${esc(p.deload_weeks.join(", "))}</span>` : ""}</div>
-      <ul class="ex-list">${order.map((k) => { const d = p.week_template?.[k] || {}; return `<li><span><b>${k}</b><br>${esc(d.name || "Rest")}</span><span class="dose muted cap">${esc(d.type || "")}</span>${d.blocks?.length ? `<span class="note">${d.blocks.map((b) => `${esc(b.exercise)} ${esc(b.sets)}×${esc(b.reps)}`).join(" · ")}</span>` : ""}</li>`; }).join("")}</ul>
+      <div><div class="eyebrow">${esc([phaseName(p.phase || ""), meta.days].filter(Boolean).join(" · "))}</div>
+        ${meta.summary ? `<p class="lede">${esc(meta.summary)}</p>` : ""}</div>
+      <div class="facts">
+        ${fact("Length", p.weeks ? `${p.weeks} weeks` : "")}
+        ${fact("Gym days", gymDays.join(" · "))}
+        ${fact("Effort", rpes.length ? `${Math.min(...rpes)}-${Math.max(...rpes)} out of 10` : "")}
+        ${fact("Easy weeks", p.deload_weeks?.length ? `Week ${p.deload_weeks.join(" + ")}` : "")}
+      </div>
+      <ol class="week-strip" aria-label="The week">${days.map(({ k, d }) => `<li class="ws-${d.type === "lift" ? "gym" : d.blocks?.length ? "cardio" : "rest"}"><span>${k.slice(0, 3)}</span><b>${esc(short(d))}</b></li>`).join("")}</ol>
+      ${train.map(({ k, d }) => {
+        const [nm, focus] = splitName(d.name), groups = groupBlocks(d.blocks), heads = groups.length > 1;
+        return `<section class="day-card"><div class="day-card-head"><span class="day-badge">${k}</span><span class="dc-title"><b>${esc(nm)}</b>${focus ? `<span class="small muted">${esc(focus)}</span>` : ""}</span>${d.type === "lift" ? `<span class="small muted nowrap">${d.blocks.length} exercises</span>` : ""}</div>
+          <ul class="ex-list compact">${groups.map((g) => (heads ? `<li class="grp"><span class="eyebrow">${esc(g.label)}</span></li>` : "") + g.items.map(({ b }) => `<li><span>${esc(b.exercise)}</span><span class="dose">${esc(b.sets)} × ${esc(b.reps)}</span></li>`).join("")).join("")}</ul></section>`;
+      }).join("")}
+      ${rest.length ? `<p class="small muted">Rest: ${rest.map(({ k, d }) => `${k}${restNote(d) ? ` (${restNote(d)})` : ""}`).join(", ")}.</p>` : ""}
       ${meta.id === activeId ? `<div class="banner">${icon.check} This is your current plan.</div>` : `
         <button type="button" class="btn primary wide" data-act="switch-program" data-id="${esc(meta.id)}">Switch to this program</button>
         <p class="small muted">Replaces your current plan${phaseChange ? ` and starts ${esc(phaseName(p.phase))} with week 1 on ${esc(fmtDay(programStart()))}` : ""}. Your logs don't change, and you can switch back any time.</p>`}`;
-    return { title: meta.title, body };
+    return { title: splitName(meta.title)[1] || meta.title, body };
   };
   sheets["drill-picker"] = () => ({ title: "Add cardio", body: `<ul class="pick-list">${Object.entries(DRILL_KINDS).map(([k, l]) => `<li><button type="button" class="pick-row" data-act="pick-drill" data-v="${k}"><span><b>${esc(l)}</b><span class="small muted">${esc(DRILL_HINTS[k])}</span></span></button></li>`).join("")}</ul>` });
 
@@ -1180,6 +1293,7 @@
       <div class="target-line"><b>${esc(b.sets)} × ${esc(b.reps)}</b></div>
       ${b.note ? `<p>${esc(b.note)}</p>` : ""}
       ${DRILL_HOW[kind] ? `<p class="small muted">${esc(DRILL_HOW[kind])}</p>` : ""}
+      ${["sprints", "agility"].includes(kind) ? videoCard(b.exercise, videoUrl(b.exercise, null, "drill")) : ""}
       ${last ? `<p class="small muted">Last time (${esc(fmtDay(last.date))}): ${esc(last.text)}</p>` : ""}` };
   };
 
