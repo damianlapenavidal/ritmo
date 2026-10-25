@@ -363,7 +363,10 @@
   "ref": "Side_Lateral_Raise",
   "step_lb": 5,
   "per_hand": true,
-  "alternatives": []
+  "alternatives": [
+   "Machine Shoulder Press",
+   "Face Pull"
+  ]
  },
  "Pull-up": {
   "muscles": [
@@ -542,7 +545,11 @@
   "ref": "Farmers_Walk",
   "step_lb": 5,
   "per_hand": true,
-  "alternatives": []
+  "alternatives": [
+   "Pallof Press",
+   "Plank",
+   "Dead Bug"
+  ]
  },
  "Box Jump": {
   "muscles": [

@@ -27,7 +27,7 @@
     for (const w of workouts || []) {
       for (const ex of w.exercises || []) {
         if (ex.name !== name) continue;
-        const sets = (ex.sets || []).filter((s) => (+s.reps || 0) > 0);
+        const sets = (ex.sets || []).filter((s) => (+s.reps || 0) > 0 || (+s.duration_s || 0) > 0 || (+s.distance_m || 0) > 0);
         if (sets.length) out.push({ date: String(w.date || "").slice(0, 10), sets });
       }
     }
@@ -39,20 +39,22 @@
   const plate = (unit) => (unit === "lb" ? 5 : 2.5);
   const fmtNum = (v) => (Math.round(v * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 
-  // "185 lb × 5, 5, 5 @ RPE 7" (or "5, 5, 5 reps" for bodyweight)
+  // "185 lb × 5, 5, 5 @ RPE 7"; "5, 5, 5 reps" for bodyweight; "30s, 30s" for holds; "70 lb × 30 m, 30 m" for carries
   function describe(sets, unit) {
     const loads = sets.map((s) => +s.load_kg || 0);
     const top = Math.max(...loads);
-    const reps = sets.map((s) => s.reps).join(", ");
+    const timed = sets.some((s) => +s.duration_s > 0), dist = !timed && sets.some((s) => +s.distance_m > 0);
+    const reps = sets.map((s) => (timed ? `${+s.duration_s || 0}s` : dist ? `${+s.distance_m || 0} m` : s.reps)).join(", ");
     const rpes = sets.map((s) => s.rpe).filter((r) => r != null && r !== "");
     const rpe = rpes.length ? ` @ RPE ${fmtNum(Math.max(...rpes.map(Number)))}` : "";
-    if (top <= 0) return `${reps} reps${rpe}`;
+    if (top <= 0) return `${reps}${timed || dist ? "" : " reps"}${rpe}`;
     const same = loads.every((l) => Math.abs(l - top) < 0.05);
     return `${fmtNum(Math.round(toUnit(top, unit)))} ${unit}${same ? "" : " (top)"} × ${reps}${rpe}`;
   }
 
   /* opts: {name, reps (plan string), info (exercises.json entry), workouts, targetRpe, deload, unit}
-     returns {last, range, kind, load, short, text}: load is in `unit` (null when there's nothing to load);
+     returns {last, range, kind, load, targetReps, short, text}: load is in `unit` (null when there's nothing to load);
+     targetReps is what to aim for today (the log's done tap fills it in);
      short is a compact label for lists ("195 lb", "7+ reps"); text is the full coaching line */
   function suggest(opts) {
     const unit = opts.unit === "kg" ? "kg" : "lb";
@@ -62,7 +64,7 @@
     const last = hist[hist.length - 1] || null;
     const lastInfo = last ? { date: last.date, text: describe(last.sets, unit) } : null;
     const target = Number(opts.targetRpe) || 7;
-    const base = { last: lastInfo, range, load: null };
+    const base = { last: lastInfo, range, load: null, targetReps: range ? range.lo : null };
     if (!range) return { ...base, kind: "none", short: "", text: "" };
     if (!last) {
       const text = (Number(info.step_lb) || 0) > 0
@@ -83,9 +85,9 @@
     const best = Math.max(...work.map((s) => +s.reps));
 
     if (bodyweight) {
-      if (allTop && rpeOk) return { ...base, kind: "reps-up", short: "go harder", text: `You hit ${range.hi} on every set: add a little load or a harder version.` };
+      if (allTop && rpeOk) return { ...base, kind: "reps-up", targetReps: range.hi, short: "go harder", text: `You hit ${range.hi} on every set: add a little load or a harder version.` };
       const aim = Math.min(best + 1, range.hi);
-      return { ...base, kind: "reps", short: `${aim}+ reps`, text: `Beat last time: aim for ${aim}+ reps per set.` };
+      return { ...base, kind: "reps", targetReps: aim, short: `${aim}+ reps`, text: `Beat last time: aim for ${aim}+ reps per set.` };
     }
 
     const lastLoad = toUnit(topKg, unit);
@@ -107,8 +109,8 @@
       return { ...base, kind: "up", load, short: short(load), text: `You hit ${range.hi} on every set${maxRpe != null ? ` at RPE ${fmtNum(maxRpe)}` : ""}: +${fmtNum(step)} ${unit}, so ${fmtNum(load)} ${unit}${per} today.${maxRpe == null ? " Log RPE for sharper suggestions." : ""}` };
     }
     const load = roundTo(lastLoad, unit === "lb" ? 2.5 : 1.25);
-    if (allTop) return { ...base, kind: "hold", load, short: short(load), text: `Reps were there but it felt hard (RPE ${fmtNum(maxRpe)}): repeat ${fmtNum(load)} ${unit}${per} and own it.` };
-    return { ...base, kind: "hold", load, short: short(load), text: `Same load, more reps: aim for ${Math.min(best + 1, range.hi)}+ until every set hits ${range.hi}.` };
+    if (allTop) return { ...base, kind: "hold", load, targetReps: range.hi, short: short(load), text: `Reps were there but it felt hard (RPE ${fmtNum(maxRpe)}): repeat ${fmtNum(load)} ${unit}${per} and own it.` };
+    return { ...base, kind: "hold", load, targetReps: Math.min(best + 1, range.hi), short: short(load), text: `Same load, more reps: aim for ${Math.min(best + 1, range.hi)}+ until every set hits ${range.hi}.` };
   }
 
   const api = { parseReps, history, describe, suggest };

@@ -19,15 +19,18 @@
   },
   "schedule": {
     "gym_days_per_week": 3,
-    "conditioning_days_per_week": 2,
+    "conditioning_days_per_week": 1,
     "session_minutes": 60,
-    "preferred_days": [
+    "gym_days": [
       "Mon",
+      "Wed",
+      "Fri"
+    ],
+    "busy_days": [
       "Tue",
-      "Thu",
-      "Fri",
-      "Sat"
-    ]
+      "Thu"
+    ],
+    "weekend": "Often no gym access: cardio only (walk, run or soccer)."
   },
   "equipment": [
     "University gym: barbells, racks, dumbbells, machines, cables",

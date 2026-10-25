@@ -1,44 +1,51 @@
 {
-  "generated": "2026-10-25T02:24:18",
+  "generated": "2026-10-25T03:16:13",
   "as_of": "2026-10-19",
   "phase": "phase-1",
   "phase_week": 5,
   "targets": {
     "phase": "phase-1",
     "missing_profile_fields": [],
-    "bmr": 1781,
-    "tdee_formula": 2760,
-    "tdee_adaptive": 2654,
+    "bmr": 1770,
+    "tdee_formula": 2744,
+    "tdee_adaptive": 2357,
     "tdee_used": "adaptive",
-    "kcal": 2650,
-    "protein_g": 139,
-    "fat_g": 80,
-    "carbs_g": 345
+    "kcal": 2360,
+    "protein_g": 137,
+    "fat_g": 71,
+    "carbs_g": 293
   },
   "weight": {
-    "latest_kg": 76.7,
-    "avg7_kg": 77.34,
-    "change_kg_per_week": 0.07,
-    "change_pct_per_week": 0.09
+    "latest_kg": 76.2,
+    "avg7_kg": 76.28,
+    "change_kg_per_week": 0.54,
+    "change_pct_per_week": 0.72
   },
   "this_week": {
     "start": "2026-10-19",
     "sessions": 0,
     "lift_sessions": 0,
     "conditioning_min": 0,
+    "conditioning": {
+      "interval_rounds": 0,
+      "sprint_reps": 0,
+      "sport_min": 0,
+      "distance_km": 0.0
+    },
+    "session_load": 0,
     "hard_sets_by_muscle": {}
   },
   "nutrition_7d": {
-    "days_logged": 5,
-    "kcal": 2702,
-    "protein_g": 138
+    "days_logged": 7,
+    "kcal": 2701,
+    "protein_g": 143
   },
   "nutrition_daily": {
     "2026-09-15": {
-      "kcal": 2686,
+      "kcal": 2826,
       "protein_g": 120,
-      "carbs_g": 336,
-      "fat_g": 83,
+      "carbs_g": 353,
+      "fat_g": 88,
       "meals": 3
     },
     "2026-09-16": {
@@ -56,23 +63,23 @@
       "meals": 3
     },
     "2026-09-18": {
-      "kcal": 2666,
-      "protein_g": 125,
-      "carbs_g": 333,
-      "fat_g": 83,
+      "kcal": 2624,
+      "protein_g": 124,
+      "carbs_g": 329,
+      "fat_g": 82,
       "meals": 3
     },
     "2026-09-19": {
-      "kcal": 2506,
-      "protein_g": 136,
-      "carbs_g": 313,
-      "fat_g": 77,
+      "kcal": 2783,
+      "protein_g": 115,
+      "carbs_g": 348,
+      "fat_g": 86,
       "meals": 3
     },
     "2026-09-20": {
-      "kcal": 2615,
-      "protein_g": 113,
-      "carbs_g": 327,
+      "kcal": 2568,
+      "protein_g": 101,
+      "carbs_g": 320,
       "fat_g": 80,
       "meals": 3
     },
@@ -83,165 +90,144 @@
       "fat_g": 84,
       "meals": 3
     },
-    "2026-09-22": {
-      "kcal": 2600,
-      "protein_g": 132,
-      "carbs_g": 324,
-      "fat_g": 81,
-      "meals": 3
-    },
-    "2026-09-23": {
-      "kcal": 2682,
-      "protein_g": 123,
-      "carbs_g": 335,
-      "fat_g": 83,
-      "meals": 3
-    },
-    "2026-09-24": {
-      "kcal": 2872,
-      "protein_g": 124,
-      "carbs_g": 359,
-      "fat_g": 90,
-      "meals": 3
-    },
     "2026-09-25": {
-      "kcal": 2666,
-      "protein_g": 140,
-      "carbs_g": 333,
+      "kcal": 2647,
+      "protein_g": 126,
+      "carbs_g": 330,
       "fat_g": 83,
       "meals": 3
     },
-    "2026-09-27": {
-      "kcal": 2472,
-      "protein_g": 122,
-      "carbs_g": 310,
-      "fat_g": 77,
-      "meals": 3
-    },
-    "2026-09-28": {
-      "kcal": 2622,
-      "protein_g": 139,
-      "carbs_g": 328,
-      "fat_g": 82,
-      "meals": 3
-    },
-    "2026-09-30": {
-      "kcal": 2645,
-      "protein_g": 125,
-      "carbs_g": 331,
-      "fat_g": 83,
-      "meals": 3
-    },
-    "2026-10-01": {
-      "kcal": 2670,
-      "protein_g": 113,
-      "carbs_g": 334,
-      "fat_g": 83,
-      "meals": 3
-    },
-    "2026-10-02": {
-      "kcal": 2434,
-      "protein_g": 130,
-      "carbs_g": 305,
-      "fat_g": 77,
-      "meals": 3
-    },
-    "2026-10-03": {
-      "kcal": 2691,
-      "protein_g": 143,
-      "carbs_g": 337,
-      "fat_g": 83,
-      "meals": 3
-    },
-    "2026-10-04": {
-      "kcal": 2947,
-      "protein_g": 134,
-      "carbs_g": 368,
-      "fat_g": 92,
-      "meals": 3
-    },
-    "2026-10-05": {
-      "kcal": 3006,
-      "protein_g": 143,
-      "carbs_g": 375,
-      "fat_g": 94,
-      "meals": 3
-    },
-    "2026-10-06": {
-      "kcal": 2619,
-      "protein_g": 138,
-      "carbs_g": 327,
-      "fat_g": 81,
-      "meals": 3
-    },
-    "2026-10-07": {
-      "kcal": 2874,
-      "protein_g": 119,
-      "carbs_g": 359,
-      "fat_g": 89,
-      "meals": 3
-    },
-    "2026-10-08": {
-      "kcal": 2658,
-      "protein_g": 128,
+    "2026-09-26": {
+      "kcal": 2660,
+      "protein_g": 110,
       "carbs_g": 332,
       "fat_g": 83,
       "meals": 3
     },
-    "2026-10-09": {
+    "2026-09-27": {
+      "kcal": 2781,
+      "protein_g": 125,
+      "carbs_g": 348,
+      "fat_g": 87,
+      "meals": 3
+    },
+    "2026-09-28": {
+      "kcal": 2786,
+      "protein_g": 138,
+      "carbs_g": 348,
+      "fat_g": 87,
+      "meals": 3
+    },
+    "2026-09-29": {
+      "kcal": 2922,
+      "protein_g": 129,
+      "carbs_g": 365,
+      "fat_g": 90,
+      "meals": 3
+    },
+    "2026-10-01": {
+      "kcal": 2495,
+      "protein_g": 124,
+      "carbs_g": 312,
+      "fat_g": 77,
+      "meals": 3
+    },
+    "2026-10-02": {
+      "kcal": 2699,
+      "protein_g": 128,
+      "carbs_g": 338,
+      "fat_g": 84,
+      "meals": 3
+    },
+    "2026-10-03": {
+      "kcal": 2833,
+      "protein_g": 136,
+      "carbs_g": 355,
+      "fat_g": 88,
+      "meals": 3
+    },
+    "2026-10-04": {
+      "kcal": 2687,
+      "protein_g": 120,
+      "carbs_g": 337,
+      "fat_g": 83,
+      "meals": 3
+    },
+    "2026-10-05": {
+      "kcal": 2957,
+      "protein_g": 143,
+      "carbs_g": 370,
+      "fat_g": 92,
+      "meals": 3
+    },
+    "2026-10-06": {
+      "kcal": 2833,
+      "protein_g": 136,
+      "carbs_g": 355,
+      "fat_g": 88,
+      "meals": 3
+    },
+    "2026-10-07": {
+      "kcal": 2808,
+      "protein_g": 136,
+      "carbs_g": 352,
+      "fat_g": 88,
+      "meals": 3
+    },
+    "2026-10-11": {
+      "kcal": 2729,
+      "protein_g": 134,
+      "carbs_g": 341,
+      "fat_g": 85,
+      "meals": 3
+    },
+    "2026-10-12": {
       "kcal": 2999,
       "protein_g": 141,
       "carbs_g": 375,
       "fat_g": 93,
       "meals": 3
     },
-    "2026-10-10": {
-      "kcal": 2437,
-      "protein_g": 123,
-      "carbs_g": 305,
-      "fat_g": 75,
-      "meals": 3
-    },
-    "2026-10-11": {
-      "kcal": 2951,
-      "protein_g": 144,
-      "carbs_g": 369,
-      "fat_g": 92,
-      "meals": 3
-    },
-    "2026-10-12": {
-      "kcal": 2883,
-      "protein_g": 136,
-      "carbs_g": 360,
-      "fat_g": 90,
+    "2026-10-13": {
+      "kcal": 2468,
+      "protein_g": 129,
+      "carbs_g": 307,
+      "fat_g": 78,
       "meals": 3
     },
     "2026-10-14": {
-      "kcal": 2708,
-      "protein_g": 132,
-      "carbs_g": 339,
-      "fat_g": 84,
+      "kcal": 2981,
+      "protein_g": 149,
+      "carbs_g": 373,
+      "fat_g": 93,
       "meals": 3
     },
     "2026-10-15": {
-      "kcal": 2806,
-      "protein_g": 134,
-      "carbs_g": 351,
-      "fat_g": 87,
+      "kcal": 2913,
+      "protein_g": 142,
+      "carbs_g": 364,
+      "fat_g": 90,
+      "meals": 3
+    },
+    "2026-10-16": {
+      "kcal": 2832,
+      "protein_g": 145,
+      "carbs_g": 354,
+      "fat_g": 88,
       "meals": 3
     },
     "2026-10-17": {
-      "kcal": 2945,
-      "protein_g": 142,
-      "carbs_g": 368,
-      "fat_g": 91,
+      "kcal": 2885,
+      "protein_g": 174,
+      "carbs_g": 362,
+      "fat_g": 89,
       "meals": 3
     },
     "2026-10-18": {
-      "kcal": 2861,
-      "protein_g": 148,
-      "carbs_g": 358,
-      "fat_g": 89,
+      "kcal": 2641,
+      "protein_g": 123,
+      "carbs_g": 330,
+      "fat_g": 83,
       "meals": 3
     },
     "2026-10-19": {
@@ -253,31 +239,31 @@
     }
   },
   "recovery_7d": {
-    "sleep_h": 7.1,
-    "energy_1to5": 3.2,
-    "soreness_1to5": 2.2
+    "sleep_h": 7.6,
+    "energy_1to5": 3.7,
+    "soreness_1to5": 2.0
   },
   "lifts": {
     "Romanian Deadlift": {
       "points": [
         {
-          "date": "2026-09-17",
+          "date": "2026-09-16",
           "e1rm_kg": 54.6
         },
         {
-          "date": "2026-09-24",
+          "date": "2026-09-23",
           "e1rm_kg": 60.3
         },
         {
-          "date": "2026-10-01",
+          "date": "2026-09-30",
           "e1rm_kg": 66.1
         },
         {
-          "date": "2026-10-08",
+          "date": "2026-10-07",
           "e1rm_kg": 71.8
         },
         {
-          "date": "2026-10-15",
+          "date": "2026-10-14",
           "e1rm_kg": 77.5
         }
       ],
@@ -338,13 +324,13 @@
   "flags": [
     {
       "level": "info",
-      "msg": "0/2 planned gym sessions done this week."
+      "msg": "0/3 planned gym sessions done this week."
     }
   ],
   "counts": {
-    "workouts": 17,
-    "meals": 93,
-    "body": 27,
+    "workouts": 18,
+    "meals": 84,
+    "body": 30,
     "tests": 5
   }
 }

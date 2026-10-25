@@ -8,17 +8,17 @@
       "title": "Phase 1 - Athletic base",
       "phase": "phase-1",
       "weeks": 6,
-      "days": "3 gym + 2 conditioning",
-      "summary": "Return-to-sport base: plyos, strength, intervals, Nordics and Copenhagens."
+      "days": "3 gym + weekend cardio",
+      "summary": "Comeback base: jumps, strength, sprints and intervals. Gym Mon, Wed, Fri."
     },
     {
       "id": "phase-2-upper-lower",
       "file": "phase-2-upper-lower.json",
-      "title": "Phase 2 - Upper / lower (4 days + soccer)",
+      "title": "Phase 2 - Upper / lower / full (3 days)",
       "phase": "phase-2",
       "weeks": 12,
-      "days": "4 gym + 1-2 conditioning",
-      "summary": "Lighter schedule: upper/lower twice a week with soccer or intervals."
+      "days": "3 gym + weekend cardio",
+      "summary": "Upper Monday, lower Wednesday, full body + sprints Friday."
     }
   ]
 }

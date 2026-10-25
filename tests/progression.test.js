@@ -106,6 +106,25 @@ t("first time on a bodyweight move talks about form, not load", () => {
   assert.match(r.text, /clean form/);
 });
 
+t("target reps for the done tap", () => {
+  const up = [session("2026-10-26", "Trap Bar Deadlift", sets(185, [5, 5, 5], 6))];
+  assert.strictEqual(P.suggest({ name: "Trap Bar Deadlift", reps: "5", info: tbd, workouts: up, targetRpe: 6, unit: "lb" }).targetReps, 5);
+  const hold = [session("2026-10-26", "Dumbbell Bench Press", sets(40, [9, 8, 8], 7))];
+  assert.strictEqual(P.suggest({ name: "Dumbbell Bench Press", reps: "8-10", info: { step_lb: 5 }, workouts: hold, targetRpe: 7, unit: "lb" }).targetReps, 10);
+  const up2 = [session("2026-10-26", "Dumbbell Bench Press", sets(40, [10, 10, 10], 7))];
+  assert.strictEqual(P.suggest({ name: "Dumbbell Bench Press", reps: "8-10", info: { step_lb: 5 }, workouts: up2, targetRpe: 7, unit: "lb" }).targetReps, 8);
+  assert.strictEqual(P.suggest({ name: "New", reps: "8-12", info: { step_lb: 5 }, workouts: [], unit: "lb" }).targetReps, 8);
+});
+
+t("holds and carries show up as last time", () => {
+  const w = [session("2026-10-26", "Side Plank", [{ reps: 0, duration_s: 30, load_kg: 0 }, { reps: 0, duration_s: 25, load_kg: 0 }]),
+    session("2026-10-26", "Farmer Carry", [{ reps: 0, distance_m: 30, load_kg: kg(70) }, { reps: 0, distance_m: 30, load_kg: kg(70) }])];
+  const plank = P.suggest({ name: "Side Plank", reps: "30s/side", info: {}, workouts: w, unit: "lb" });
+  assert.strictEqual(plank.kind, "none");
+  assert.strictEqual(plank.last.text, "30s, 25s");
+  assert.strictEqual(P.suggest({ name: "Farmer Carry", reps: "30 m", info: { step_lb: 5 }, workouts: w, unit: "lb" }).last.text, "70 lb × 30 m, 30 m");
+});
+
 t("timed holds: no suggestion", () => {
   const r = P.suggest({ name: "Side Plank", reps: "30s/side", info: {}, workouts: [], unit: "lb" });
   assert.strictEqual(r.kind, "none");

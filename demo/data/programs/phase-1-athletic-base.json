@@ -5,12 +5,12 @@
   "title": "Phase 1 - Athletic base",
   "weeks": 6,
   "intensity_by_week": {
-    "1": "RPE 6 - learn the movements, leave 4 reps in reserve",
-    "2": "RPE 6-7",
-    "3": "RPE 7",
-    "4": "RPE 7-8",
-    "5": "RPE 7-8 - best week",
-    "6": "Deload + retest benchmarks"
+    "1": "Effort 6/10: learn the moves",
+    "2": "Effort 6-7/10",
+    "3": "Effort 7/10",
+    "4": "Effort 7-8/10",
+    "5": "Effort 8/10: best week",
+    "6": "Easy week + retest"
   },
   "rpe_by_week": {
     "1": 6,
@@ -24,7 +24,7 @@
     6
   ],
   "progression": "Build up to the top of the rep range on every set at or below the week's RPE, then add weight (about 5 lb upper body, 10 lb lower body). Miss the bottom of the range two sessions in a row: drop about 10%.",
-  "warmup": "10 min: easy jog, dynamic mobility, FIFA 11+-style drills (skips, lateral shuffles, controlled cuts), 2 ramp-up sets of the first lift",
+  "warmup": "10 min: easy jog or bike, leg swings, skips, side shuffles, then 2 light sets of the first lift.",
   "week_template": {
     "Mon": {
       "name": "Gym A - Strength + power",
@@ -77,30 +77,12 @@
       ]
     },
     "Tue": {
-      "name": "Conditioning - Intervals",
-      "type": "conditioning",
-      "blocks": [
-        {
-          "exercise": "Intervals",
-          "sets": 6,
-          "reps": "1 min hard / 1 min easy",
-          "note": "add 1 rep per week up to 10; track or bike"
-        },
-        {
-          "exercise": "Agility",
-          "sets": 4,
-          "reps": "5-10-5 shuttle at ~80%",
-          "note": "focus on decelerating well"
-        }
-      ]
-    },
-    "Wed": {
-      "name": "Rest or easy walk + mobility",
+      "name": "Rest (busy day)",
       "type": "rest",
       "blocks": []
     },
-    "Thu": {
-      "name": "Gym B - Strength + elasticity",
+    "Wed": {
+      "name": "Gym B - Strength + bounce",
       "type": "lift",
       "blocks": [
         {
@@ -147,28 +129,20 @@
         }
       ]
     },
-    "Fri": {
-      "name": "Conditioning - Tempo run or pickup soccer",
-      "type": "conditioning",
-      "blocks": [
-        {
-          "exercise": "Tempo run",
-          "sets": 1,
-          "reps": "20-30 min conversational pace",
-          "note": "or 45-60 min of pickup soccer from week 3"
-        }
-      ]
+    "Thu": {
+      "name": "Rest (busy day)",
+      "type": "rest",
+      "blocks": []
     },
-    "Sat": {
-      "name": "Gym C - Speed + hypertrophy (from week 3)",
+    "Fri": {
+      "name": "Gym C - Speed + strength",
       "type": "lift",
-      "optional": true,
       "blocks": [
         {
           "exercise": "Sprint accelerations",
           "sets": 6,
-          "reps": "20 m at ~85%",
-          "note": "full walk-back recovery"
+          "reps": "20 m",
+          "note": "About 85% effort, walk back between reps. No space to sprint? Bike sprints, 6 x 10 s."
         },
         {
           "exercise": "Leg Press",
@@ -191,14 +165,27 @@
           "reps": "10"
         },
         {
-          "exercise": "Farmer Carry",
-          "sets": 3,
-          "reps": "30 m"
+          "exercise": "Intervals",
+          "sets": 6,
+          "reps": "30 s hard / 90 s easy",
+          "note": "Bike finisher, about 12 min."
+        }
+      ]
+    },
+    "Sat": {
+      "name": "Cardio - Run, soccer or walk",
+      "type": "conditioning",
+      "blocks": [
+        {
+          "exercise": "Intervals",
+          "sets": 6,
+          "reps": "1 min fast / 1 min easy",
+          "note": "No gym needed. Add 1 round a week, up to 10. Soccer counts instead. No time or space? A 45-60 min brisk walk."
         }
       ]
     },
     "Sun": {
-      "name": "Rest",
+      "name": "Rest or easy walk",
       "type": "rest",
       "blocks": []
     }
