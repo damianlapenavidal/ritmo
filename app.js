@@ -1229,7 +1229,13 @@
     const alts = s.mode === "swap" ? (exInfo(s.from).alternatives || []).filter((a) => a !== current && words.every((w) => a.toLowerCase().includes(w))) : [];
     let html = section("Coach-approved swaps", alts.map((a) => row(a, exInfo(a).ref, mineSub(exInfo(a)))));
     const mine = Object.entries(S.data.exercises).filter(([n, v]) => n !== current && !alts.includes(n) && match(n, v.muscles)).sort((a, b) => a[0].localeCompare(b[0]));
-    html += section("Your exercises", mine.map(([n, v]) => row(n, v.ref, mineSub(v))));
+    // Swap with no filter: same-muscle exercises first, then everything else (nothing hidden behind a chip)
+    if (s.mode === "swap" && s.muscle === "all" && !words.length) {
+      const target = new Set(exInfo(s.from).muscles || []);
+      const same = mine.filter(([, v]) => (v.muscles || []).some((m) => target.has(m)));
+      html += section("Same muscles", same.map(([n, v]) => row(n, v.ref, mineSub(v))));
+      html += section("Your other exercises", mine.filter((x) => !same.includes(x)).map(([n, v]) => row(n, v.ref, mineSub(v))));
+    } else html += section("Your exercises", mine.map(([n, v]) => row(n, v.ref, mineSub(v))));
     if (!S.lib) html += `<p class="small muted pick-sec">${s.libError ? "Couldn't load the exercise library. Check your connection and reopen." : "Loading the exercise library…"}</p>`;
     else if (!words.length && s.muscle === "all") html += `<p class="small muted pick-sec">Search or pick a muscle to browse ${S.lib.count} more exercises with photos and steps.</p>`;
     else {
@@ -1503,7 +1509,7 @@
     if (a === "sheet-back") closeSheet(false);
     if (a === "ex-info") openSheet({ type: "exercise", name: t.dataset.name, ref: t.dataset.ref || null, ex: t.dataset.ex === undefined || t.dataset.ex === "" ? null : i }, { push: inSheet, opener: t });
     if (a === "add-ex") openSheet({ type: "picker", mode: "add", q: "", muscle: "all", limit: 30 }, { opener: t });
-    if (a === "swap") { const ex = S.draft?.exercises[i]; if (ex) openSheet({ type: "picker", mode: "swap", ex: i, from: ex.name, q: "", muscle: exInfo(ex.name, ex.ref).muscles?.[0] || "all", limit: 30 }, { push: inSheet, opener: t }); }
+    if (a === "swap") { const ex = S.draft?.exercises[i]; if (ex) openSheet({ type: "picker", mode: "swap", ex: i, from: ex.name, q: "", muscle: "all", limit: 30 }, { push: inSheet, opener: t }); }
     if (a === "pick-info") openSheet({ type: "exercise", name: t.dataset.name, ref: t.dataset.ref || null, pick: true }, { push: true });
     if (a === "pick-muscle") {
       const s = S.sheet.find((x) => x.type === "picker"); s.muscle = t.dataset.v; s.limit = 30;
