@@ -478,6 +478,12 @@
       <span><b>${label} in progress</b><br><span class="small">${esc(p?.text || "started")}${dr.date !== today() && !dr.editing ? ` · from ${esc(fmtDay(dr.date))}` : ""}</span></span>${icon.chevron}</button>`;
   }
 
+  // One automatic check (analyze.py → reports/latest.json `flags`): short title, when/where, his own words quoted, one plain line.
+  // Older reports only have `msg`.
+  const flagHtml = (f) => `<div class="flag ${f.level === "warn" ? "warn" : "info"}">${f.level === "warn" ? icon.warn : icon.info}
+    <div class="flag-body"><span class="sr-only">${f.level === "warn" ? "Watch out" : "Note"}: </span>${f.title
+      ? `<b class="flag-title">${esc(f.title)}</b>${f.when ? `<span class="flag-when">${esc(f.when)}</span>` : ""}${f.quote ? `<q class="flag-quote">${esc(f.quote)}</q>` : ""}<span class="flag-text">${esc(f.text || "")}</span>`
+      : `<span>${esc(f.msg)}</span>`}</div></div>`;
   views.today = () => {
     const d = S.data, iso = today();
     const dow = dowOf(iso);
@@ -521,7 +527,9 @@
           ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://"))}">${icon.chat}Ask coach</a>`
           : `<a class="btn coach-btn" href="#settings">${icon.chat}Add your coach link</a>
              <p class="small muted coach-hint">Paste your Workout + Nutrition project link in Settings to ask the coach from here.</p>`}
-        ${r.flags?.length ? `<div class="coach-flags">${r.flags.map((f) => `<div class="flag ${f.level === "warn" ? "warn" : "info"}">${f.level === "warn" ? icon.warn : icon.info}<span><span class="sr-only">${f.level}: </span>${esc(f.msg)}</span></div>`).join("")}</div>` : ""}
+        ${r.flags?.length ? `<div class="coach-flags"><div class="eyebrow">Checks from your logs</div>
+          <p class="small muted flags-cap">Automatic, updated every time you log. Your full review comes in Monday's check-in.</p>
+          ${r.flags.map(flagHtml).join("")}</div>` : ""}
       </section>
     `;
   };

@@ -164,6 +164,12 @@ main { max-width: 980px; margin: 0 auto; padding: var(--space) var(--gutter-r) v
 .flag svg { flex: none; width: 18px; height: 18px; margin-top: 2px; }
 .flag.warn svg { color: var(--warning); }
 .flag.info svg { color: var(--series-1); }
+.flags-cap { margin: 2px 0 10px; }
+.flag-body { display: grid; gap: 2px; min-width: 0; }
+.flag-title { font-weight: 600; }
+.flag-when { font-size: 13px; color: var(--ink-3); }
+.flag-quote { display: block; margin: 6px 0 4px; padding-left: 10px; border-left: 2px solid var(--line); font-style: italic; color: var(--ink-2); }
+.flag-text { color: var(--ink-2); }
 
 /* buttons & forms */
 .btn {
