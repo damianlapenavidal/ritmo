@@ -380,7 +380,7 @@
       stack_each: { head: `${u} each`, hint: "Weight: one side's stack." },
       plates: { head: u, hint: "Weight: only the plates you add, not the machine." },
       assist: { head: `${u} help`, hint: "Weight: the machine's help. Less help = harder." },
-      held: { head: u, hint: "Weight: the plate you hold. Leave blank for none." },
+      held: { head: u, hint: "Weight: the plate or dumbbell you hold or rest on your hips. Blank = none." },
       ball: { head: u, hint: "Weight: the ball." },
       none: { head: "", hint: "", none: true },
     })[kind] || { head: u, hint: "" };
