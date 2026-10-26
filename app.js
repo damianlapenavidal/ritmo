@@ -383,6 +383,12 @@
     for (const day of Object.values(S.data.program.week_template || {})) for (const b of day.blocks || []) if (b.exercise === name) return b.reps;
     return null;
   }
+  // the plan's one-line note for an exercise ("Lower slowly, 3 seconds"): today's session first, then any day
+  function planNote(name) {
+    const wt = S.data.program.week_template || {};
+    for (const day of [wt[dowOf(today())], ...Object.values(wt)]) for (const b of day?.blocks || []) if (b.exercise === name && b.note) return b.note;
+    return "";
+  }
   function suggestFor(name, reps, ref) {
     if (!window.Progression || !name) return null;
     const ctx = weekCtx();
@@ -1180,6 +1186,7 @@
     const fromLog = s.ex != null && S.draft?.exercises[s.ex]?.name === s.name;
     const reps = fromLog ? S.draft.exercises[s.ex].planReps : planReps(s.name);
     const sg = suggestFor(s.name, reps, ref);
+    const note = planNote(s.name);
     const hist = window.Progression ? Progression.history(S.data.workouts, s.name).slice(-5).reverse() : [];
     const best = (sets) => Math.max(0, ...sets.map((st) => epley(+st.load_kg || 0, +st.reps || 0)));
     const alts = (info.alternatives || []).filter((a) => a !== s.name);
@@ -1194,7 +1201,8 @@
       ${tags.length || lib ? `<div class="tag-row">${tags.map((m) => `<span class="pill cap">${esc(m)}</span>`).join("")}${lib?.equipment && lib.equipment !== "other" ? `<span class="pill ghost cap">${esc(lib.equipment)}</span>` : ""}${lib?.level ? `<span class="pill ghost cap">${esc(lib.level)}</span>` : ""}</div>` : ""}
       ${s.pick && pick ? `<button type="button" class="btn primary wide" data-act="pick-ex" data-name="${esc(s.name)}" data-ref="${esc(ref || "")}">${pick.mode === "swap" ? `Swap in for ${esc(pick.from)}` : "Add to workout"}</button>` : ""}
       ${sg && sg.kind !== "none" ? `<section><h3>Today</h3>
-        <div class="target-line"><b>${sg.kind === "first" ? (info.step_lb === 0 ? "Learn the move" : "Find your weight") : esc([sg.load != null ? sg.short : "", sg.targetReps ? `${sg.load != null ? "× " : ""}${sg.targetReps}${sg.load != null ? "" : "+"} reps` : ""].filter(Boolean).join(" "))}</b></div>
+        <div class="target-line"><b>${sg.kind === "first" ? (info.step_lb === 0 || info.start === "bodyweight" ? "Learn the move" : "Find your weight") : esc([sg.load != null ? sg.short : "", sg.targetReps ? `${sg.load != null ? "× " : ""}${sg.targetReps}${sg.load != null ? "" : "+"} reps` : ""].filter(Boolean).join(" "))}</b></div>
+        ${note ? `<p>${esc(note)}</p>` : ""}
         <p class="small muted">${esc(sg.text)}</p>
         ${sg.last ? `<p class="small muted">Last time (${esc(fmtDay(sg.last.date))}): ${esc(sg.last.text)}</p>` : ""}</section>` : ""}
       ${info.cues?.length ? `<section><h3>Coach cues</h3><ul class="cues">${info.cues.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}

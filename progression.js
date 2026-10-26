@@ -67,9 +67,10 @@
     const base = { last: lastInfo, range, load: null, targetReps: range ? range.lo : null };
     if (!range) return { ...base, kind: "none", short: "", text: "" };
     if (!last) {
-      const text = (Number(info.step_lb) || 0) > 0
+      // start: "bodyweight" = moves like back extensions: no weight until the reps are easy
+      const text = (Number(info.step_lb) || 0) > 0 && info.start !== "bodyweight"
         ? `First time: pick a load you could lift for ${target <= 6 ? "3-4" : "2-3"} more reps (about RPE ${fmtNum(target)}).`
-        : `First time: do the planned reps with clean form, about RPE ${fmtNum(target)}. Quality over speed.`;
+        : `First time: ${info.start === "bodyweight" ? "no weight. Do" : "do"} the planned reps with clean form, about RPE ${fmtNum(target)}. Quality over speed.`;
       return { ...base, kind: "first", short: "first time", text };
     }
 
@@ -85,6 +86,12 @@
     const best = Math.max(...work.map((s) => +s.reps));
 
     if (bodyweight) {
+      // done with no weight but the move can take some (a plate or dumbbell): the first step up is step_lb
+      if (allTop && rpeOk && stepLb > 0) {
+        const load = unit === "lb" ? stepLb : Math.max(1.25, roundTo(stepLb / LB, 1.25));
+        const s = `${fmtNum(load)} ${unit}${info.per_hand ? " each" : ""}`;
+        return { ...base, kind: "up", load, targetReps: range.lo, short: s, text: `You hit ${range.hi} on every set with no weight: hold ${s} today (a plate or dumbbell).` };
+      }
       if (allTop && rpeOk) return { ...base, kind: "reps-up", targetReps: range.hi, short: "go harder", text: `You hit ${range.hi} on every set: add a little load or a harder version.` };
       const aim = Math.min(best + 1, range.hi);
       return { ...base, kind: "reps", targetReps: aim, short: `${aim}+ reps`, text: `Beat last time: aim for ${aim}+ reps per set.` };

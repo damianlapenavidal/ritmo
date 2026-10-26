@@ -106,6 +106,25 @@ t("first time on a bodyweight move talks about form, not load", () => {
   assert.match(r.text, /clean form/);
 });
 
+t("bodyweight-start move: first time says no weight", () => {
+  const r = P.suggest({ name: "Back Extension", reps: "10-12", info: { step_lb: 5, start: "bodyweight" }, workouts: [], targetRpe: 6, unit: "lb" });
+  assert.strictEqual(r.kind, "first");
+  assert.match(r.text, /no weight/);
+});
+
+t("bodyweight-start move: all reps with no weight -> hold the first step", () => {
+  const info = { step_lb: 5, start: "bodyweight" };
+  const done = [session("2026-10-26", "Back Extension", sets(0, [12, 12, 12], 6))];
+  const up = P.suggest({ name: "Back Extension", reps: "10-12", info, workouts: done, targetRpe: 6, unit: "lb" });
+  assert.strictEqual(up.kind, "up");
+  assert.strictEqual(up.load, 5);
+  assert.strictEqual(up.targetReps, 10);
+  assert.match(up.text, /hold 5 lb/);
+  const short = [session("2026-10-26", "Back Extension", sets(0, [12, 11, 10], 6))];
+  assert.strictEqual(P.suggest({ name: "Back Extension", reps: "10-12", info, workouts: short, targetRpe: 6, unit: "lb" }).kind, "reps");
+  assert.strictEqual(P.suggest({ name: "Back Extension", reps: "10-12", info, workouts: done, targetRpe: 6, unit: "kg" }).load, 2.5);
+});
+
 t("target reps for the done tap", () => {
   const up = [session("2026-10-26", "Trap Bar Deadlift", sets(185, [5, 5, 5], 6))];
   assert.strictEqual(P.suggest({ name: "Trap Bar Deadlift", reps: "5", info: tbd, workouts: up, targetRpe: 6, unit: "lb" }).targetReps, 5);
