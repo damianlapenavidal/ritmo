@@ -401,6 +401,12 @@
     for (const day of Object.values(S.data.program.week_template || {})) for (const b of day.blocks || []) if (b.exercise === name) return b.reps;
     return null;
   }
+  // Your own notes on an exercise from the log (exercise `notes`), newest first: [{date, text}]
+  function exNotes(name, n = 5) {
+    const out = [];
+    for (const w of S.data.workouts || []) for (const ex of w.exercises || []) if (ex.name === name && String(ex.notes || "").trim()) out.push({ date: String(w.date).slice(0, 10), text: String(ex.notes).trim() });
+    return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, n);
+  }
   // the plan's one-line note for an exercise ("Lower slowly, 3 seconds"): today's session first, then any day
   function planNote(name) {
     const wt = S.data.program.week_template || {};
@@ -529,7 +535,8 @@
     if (!dr) return null;
     const sets = (dr.exercises || []).reduce((n, ex) => n + ex.sets.filter((s) => s.done || s.reps !== "" || s.rpe !== "" || (s.load !== "" && !s.auto)).length, 0);
     const drills = (dr.drills || []).filter(drillTouched).length;
-    if (!sets && !drills && !dr.duration_min && !dr.notes && !dr.rpe && !dr.editing) return null;
+    const exNoted = (dr.exercises || []).some((ex) => String(ex.note || "").trim());
+    if (!sets && !drills && !exNoted && !dr.duration_min && !dr.notes && !dr.rpe && !dr.editing) return null;
     return { sets, drills, text: [sets ? `${sets} set${sets > 1 ? "s" : ""} done` : "", drills ? `${drills} drill${drills > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ") || "started" };
   }
   // Set column: reps, seconds (holds like "30s/side") or meters (carries like "30 m").
@@ -622,7 +629,7 @@
       v: DRAFT_V, date: w.date.slice(0, 10), type: w.type || "lift", session: w.session || "", tplName: "", duration_min: val(w.duration_min), rpe: val(w.rpe), notes: w.notes || "",
       exercises: (w.exercises || []).map((ex) => {
         const unit = unitOf(ex);
-        return { name: ex.name, ref: ex.ref, muscles: ex.muscles, swappedFrom: ex.swapped_from, planReps: planReps(ex.name), unit,
+        return { name: ex.name, ref: ex.ref, muscles: ex.muscles, swappedFrom: ex.swapped_from, planReps: planReps(ex.name), unit, note: ex.notes || "",
           sets: (ex.sets || []).map((s) => { const shown = fmtLoad(s.load_kg); return { reps: val(unit === "sec" ? s.duration_s : unit === "m" ? s.distance_m : s.reps), load: shown, shown, kg: s.load_kg || 0, rpe: val(s.rpe), auto: false, done: true }; }) };
       }),
       drills: (w.conditioning || []).map((b) => ({ kind: b.kind, name: b.name, planned: false, plan: {}, mode: b.mode || "", rounds: val(b.rounds), work_s: val(b.work_s), rest_s: val(b.rest_s), reps: val(b.reps),
@@ -641,8 +648,9 @@
         const kg = s.load === "" ? 0 : s.shown != null && s.load === s.shown ? s.kg : round(toKg(+s.load), 0.1);
         return { ...(x.unit === "sec" ? { duration_s: v } : x.unit === "m" ? { distance_m: v } : { reps: v }), load_kg: kg, ...(s.rpe !== "" ? { rpe: +s.rpe } : {}) };
       });
-      return { name: x.name.trim(), ...(!mine && x.ref ? { ref: x.ref } : {}), ...(!mine && x.muscles?.length ? { muscles: x.muscles } : {}), ...(x.swappedFrom ? { swapped_from: x.swappedFrom } : {}), sets };
-    }).filter((x) => x.sets.length);
+      const notes = String(x.note || "").trim();
+      return { name: x.name.trim(), ...(!mine && x.ref ? { ref: x.ref } : {}), ...(!mine && x.muscles?.length ? { muscles: x.muscles } : {}), ...(x.swappedFrom ? { swapped_from: x.swappedFrom } : {}), sets, ...(notes ? { notes } : {}) };
+    }).filter((x) => x.sets.length || x.notes); // a note alone ("skipped, machine broken") is kept for the coach
     const conditioning = (dr.drills || []).filter(drillTouched).map((b) => {
       const o = { kind: b.kind, name: (b.name || DRILL_KINDS[b.kind]).trim() };
       if (b.mode && ["intervals", "steady"].includes(b.kind)) o.mode = b.mode;
@@ -747,6 +755,9 @@
       const lr = loadRule(exInfo(ex.name, ex.ref));
       // bodyweight moves: no weight box (unless an old log line had one)
       const noLoad = lr.none && ex.sets.every((st) => st.load === "" || st.load == null);
+      // the newest note you wrote on this exercise (setup, how it felt); not while editing that same workout
+      const prevNote = dr.editing ? null : exNotes(ex.name, 1)[0];
+      const noteOn = ex.noteOpen || String(ex.note || "") !== "";
       return `
         <div class="ex-block">
           <div class="ex-head">
@@ -757,6 +768,7 @@
           ${ex.swappedFrom ? `<div class="small muted ex-meta">${icon.swap} instead of ${esc(ex.swappedFrom)}</div>` : ""}
           ${meta ? `<div class="small muted ex-meta">${meta}</div>` : ""}
           ${lr.hint && !noLoad ? `<div class="small muted ex-meta">${esc(lr.hint)}</div>` : ""}
+          ${prevNote ? `<div class="small ex-meta last-note">Your note, ${esc(fmtDay(prevNote.date))}: ${esc(prevNote.text)}</div>` : ""}
           <div class="set-row set-head"><span>#</span><span>${col}</span><span>${noLoad ? "" : esc(lr.head || u)}</span><button type="button" class="head-btn" data-act="effort-info">Effort</button><span></span></div>
           ${ex.sets.map((st, j) => `<div class="set-row${st.done ? " is-done" : ""}">
             <span class="muted small">${j + 1}</span>
@@ -768,7 +780,10 @@
           <div class="set-actions">
             <button type="button" class="btn small ghost" data-act="add-set" data-ex="${i}">+ Set</button>
             ${ex.sets.length > 1 ? `<button type="button" class="btn small ghost" data-act="rm-set" data-ex="${i}">− Set</button>` : ""}
+            ${noteOn ? "" : `<button type="button" class="btn small ghost" data-act="ex-note" data-ex="${i}">+ Note</button>`}
           </div>
+          ${noteOn ? `<label class="ex-note"><span class="sr-only">Note for ${esc(ex.name)}</span>
+            <input type="text" data-ex="${i}" data-f="note" value="${esc(ex.note || "")}" placeholder="Seat height, how it felt, any pain" maxlength="200" enterkeyhint="done" autocomplete="off"></label>` : ""}
         </div>`;
     };
     const field = (k, key, label, val, ph, attrs = 'type="number" inputmode="numeric"') => `<label class="field"><span>${label}</span><input ${attrs} data-dr="${k}" data-df="${key}" value="${esc(val)}" placeholder="${esc(ph ?? "")}"></label>`;
@@ -1211,7 +1226,7 @@
     const fromLog = s.ex != null && S.draft?.exercises[s.ex]?.name === s.name;
     const reps = fromLog ? S.draft.exercises[s.ex].planReps : planReps(s.name);
     const sg = suggestFor(s.name, reps, ref);
-    const note = planNote(s.name), lr = loadRule(info);
+    const note = planNote(s.name), lr = loadRule(info), myNotes = exNotes(s.name, 5);
     const hist = window.Progression ? Progression.history(S.data.workouts, s.name).slice(-5).reverse() : [];
     // e1RM means nothing when the number is the machine's help
     const best = (sets) => (info.load === "assist" ? 0 : Math.max(0, ...sets.map((st) => epley(+st.load_kg || 0, +st.reps || 0))));
@@ -1232,6 +1247,7 @@
         ${lr.hint ? `<p class="small">${esc(lr.hint)}</p>` : ""}
         <p class="small muted">${esc(sg.text)}</p>
         ${sg.last ? `<p class="small muted">Last time (${esc(fmtDay(sg.last.date))}): ${esc(sg.last.text)}</p>` : ""}</section>` : ""}
+      ${myNotes.length ? `<section><h3>Your notes</h3><ul class="cues">${myNotes.map((n) => `<li><span class="muted">${esc(fmtDay(n.date))}:</span> ${esc(n.text)}</li>`).join("")}</ul></section>` : ""}
       ${info.cues?.length ? `<section><h3>Coach cues</h3><ul class="cues">${info.cues.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}
       ${lib?.steps?.length ? `<details class="how"${info.cues?.length ? "" : " open"}><summary>How to do it</summary><ol>${lib.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></details>` : ""}
       ${alts.length ? `<section><h3>Swaps</h3>
@@ -1581,11 +1597,15 @@
     }
     if (a === "rm-ex") {
       const ex = S.draft.exercises[i];
-      if (ex?.sets.some((x) => x.done || x.reps !== "" || x.rpe !== "") && !t.dataset.armed) { toast(`Tap × again to remove ${ex.name}`); return arm(t); }
+      if ((String(ex?.note || "").trim() || ex?.sets.some((x) => x.done || x.reps !== "" || x.rpe !== "")) && !t.dataset.armed) { toast(`Tap × again to remove ${ex.name}`); return arm(t); }
       S.draft.exercises.splice(i, 1); render();
     }
     if (a === "add-set") { const sets = S.draft.exercises[i].sets, last = sets[sets.length - 1] || {}; sets.push({ reps: "", load: last.load ?? "", rpe: "", auto: (last.load ?? "") !== "", done: false }); render(); }
     if (a === "rm-set") { const sets = S.draft.exercises[i].sets; if (Number.isNaN(j)) sets.pop(); else sets.splice(j, 1); render(); }
+    if (a === "ex-note") {
+      S.draft.exercises[i].noteOpen = true; render();
+      $(`.ex-note input[data-ex="${i}"]`)?.focus(); // same tap, so the iPhone keyboard opens
+    }
     if (a === "reset-draft") {
       if (!t.dataset.armed) return arm(t, "Tap again to discard");
       S.draft = null; saveDraft(); toast("Workout discarded"); go("today");
@@ -1644,7 +1664,7 @@
       // Load the new session's blocks. Keep only what was actually logged (ticked or typed sets, filled cardio);
       // untouched blocks from the old session go, so "Walk" never still shows Saturday's intervals.
       const dr = S.draft, fresh = { ...draftFor(e.target.value), choice: e.target.value };
-      const logged = (x) => x.sets.some((st) => st.done || st.reps !== "" || st.rpe !== "" || (st.load !== "" && !st.auto));
+      const logged = (x) => String(x.note || "").trim() || x.sets.some((st) => st.done || st.reps !== "" || st.rpe !== "" || (st.load !== "" && !st.auto));
       const keptEx = dr.exercises.filter(logged), keptDr = (dr.drills || []).filter(drillTouched);
       fresh.exercises = [...keptEx, ...fresh.exercises.filter((x) => !keptEx.some((k) => k.name === x.name))];
       fresh.drills = [...keptDr, ...(fresh.drills || []).filter((b) => !keptDr.some((k) => k.kind === b.kind && k.name === b.name))];
@@ -1773,6 +1793,8 @@
   delete document.documentElement.dataset.theme;
   $("#settings-btn").addEventListener("click", () => go("settings"));
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.sheet.length) { e.preventDefault(); closeSheet(false); } });
+  // Return/Done on the iPhone keyboard in a workout text box (exercise note, drill name) closes the keyboard; it must never submit = save the workout
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches?.('#log-form[data-kind="workout"] input')) { e.preventDefault(); e.target.blur(); } });
   window.addEventListener("online", flushQueue);
   setInterval(() => {
     document.querySelectorAll("[data-timer]").forEach((el) => { el.textContent = fmtClock(Date.now() - +el.dataset.timer); });
