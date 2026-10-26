@@ -809,7 +809,10 @@
       ${dr.editing
         ? `<div class="btn-row"><button class="btn primary" type="submit">Save changes</button><button type="button" class="btn ghost" data-act="cancel-workout-edit">Cancel</button></div>
            <button type="button" class="btn ghost wide danger-text" data-act="delete-workout" data-editing="1">Delete this workout</button>`
-        : `<div class="btn-row"><button class="btn primary" type="submit">Finish and save</button><button type="button" class="btn ghost" data-act="reset-draft"${p || dr.startedAt ? ' data-confirm="1"' : ""}>Discard</button></div>`}
+        // Discard sits on its own line so "Tap again to discard" never moves Finish under your thumb,
+        // and only shows when there's something to discard
+        : `<button class="btn primary wide" type="submit">Finish and save</button>
+           ${p || dr.startedAt ? '<button type="button" class="btn ghost wide danger-text" data-act="reset-draft">Discard workout</button>' : ""}`}
       ${timing ? `<div class="workout-bar" role="status">
         <span class="clock" data-timer="${dr.startedAt}">${fmtClock(Date.now() - dr.startedAt)}</span>
         <span class="bar-info"><span data-rest="${dr.restFrom || ""}">${dr.restFrom ? `Rest ${fmtClock(Date.now() - dr.restFrom)}` : ""}</span><span>${doneSets}/${allSets} done</span></span>
@@ -1559,7 +1562,10 @@
     }
     if (a === "add-set") { const sets = S.draft.exercises[i].sets, last = sets[sets.length - 1] || {}; sets.push({ reps: "", load: last.load ?? "", rpe: "", auto: (last.load ?? "") !== "", done: false }); render(); }
     if (a === "rm-set") { const sets = S.draft.exercises[i].sets; if (Number.isNaN(j)) sets.pop(); else sets.splice(j, 1); render(); }
-    if (a === "reset-draft") { if (t.dataset.confirm && !t.dataset.armed) return arm(t, "Tap again to discard"); S.draft = null; render(); }
+    if (a === "reset-draft") {
+      if (!t.dataset.armed) return arm(t, "Tap again to discard");
+      S.draft = null; saveDraft(); toast("Workout discarded"); go("today");
+    }
     if (a === "pick-loc" && S.meal) {
       S.meal.location = t.dataset.v; store.set("ritmo.location", t.dataset.v);
       t.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === t));
