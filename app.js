@@ -456,15 +456,17 @@
       const g = keys[k], last = out[out.length - 1];
       if (last && last.key === g) last.items.push({ b, k }); else out.push({ key: g, items: [{ b, k }] });
     });
-    for (const g of out) g.label = g.key === "cardio" && out.length > 1 && g === out[out.length - 1] ? "Finisher" : GROUPS_ORDER[g.key];
+    // "Finisher" only after lifting; on a run day (jumps, then intervals) the cardio is the main part
+    for (const g of out) g.label = g.key === "cardio" && out.some((x) => x.key === "strength") && g === out[out.length - 1] ? "Finisher" : GROUPS_ORDER[g.key];
     return out;
   }
   const groupHead = (label) => `<li class="grp"><span class="eyebrow">${esc(label)}</span></li>`;
   function sessionList(sess, dow, withWarmup = true) {
     const groups = groupBlocks(sess.blocks), heads = groups.length > 1;
     return `<ul class="ex-list tap-list${heads ? " grouped" : ""}">
-      ${withWarmup && sess.type === "lift" && S.data.program.warmup ? `<li><button type="button" class="row-link" data-act="warmup-info"><span class="row-name">Warm-up</span><span class="dose muted">10 min</span></button></li>` : ""}
-      ${groups.map((g) => (heads ? groupHead(g.label) : "") + g.items.map(({ b, k }) => sessionRow(b, k, dow)).join("")).join("")}</ul>`;
+      ${withWarmup && sess.blocks?.length && S.data.program.warmup ? `<li><button type="button" class="row-link" data-act="warmup-info" data-gym="${sess.type === "lift" ? 1 : 0}"><span class="row-name">Warm-up</span><span class="dose muted">${routineMin(S.data.program.warmup)} min</span></button></li>` : ""}
+      ${groups.map((g) => (heads ? groupHead(g.label) : "") + g.items.map(({ b, k }) => sessionRow(b, k, dow)).join("")).join("")}
+      ${withWarmup && sess.blocks?.length && S.data.program.cooldown ? `${heads ? groupHead("After") : ""}<li><button type="button" class="row-link" data-act="cooldown-info"><span class="row-name">Cool-down</span><span class="dose muted">${routineMin(S.data.program.cooldown)} min</span></button></li>` : ""}</ul>`;
   }
   // Banner for a workout that's been started or partly logged (it's saved on the phone).
   function draftBanner() {
@@ -663,7 +665,8 @@
     });
     const sport = dr.type === "sport" ? { name: (dr.sport?.name || "Soccer").trim(), ...(dr.sport?.format ? { format: dr.sport.format } : {}), ...(dr.sport?.distance ? { distance_m: toMeters(dr.sport.distance) } : {}) } : undefined;
     const minutes = dr.duration_min !== "" ? +dr.duration_min : dr.type === "conditioning" && estMinutes(dr) ? estMinutes(dr) : undefined;
-    const type = dr.type === "sport" ? "sport" : exercises.length ? "lift" : "conditioning";
+    // jumps before a run (Saturday) don't turn it into a gym session: only real lifts do
+    const type = dr.type === "sport" ? "sport" : exercises.some((x) => exInfo(x.name, x.ref).pattern !== "plyo") ? "lift" : "conditioning";
     return JSON.parse(JSON.stringify({ date: dr.date, type, session: dr.session || undefined, duration_min: minutes, rpe: num(dr.rpe),
       exercises: exercises.length ? exercises : undefined, conditioning: conditioning.length ? conditioning : undefined, sport, notes: dr.notes || undefined }));
   }
@@ -827,6 +830,7 @@
           : `<label class="field"><span>Minutes</span><input type="number" inputmode="numeric" data-f="duration_min" value="${esc(dr.duration_min)}" placeholder="${est ? `≈ ${est}` : ""}"></label>`}
       </div>
       ${!timing && !dr.editing ? `<button type="button" class="btn primary wide" data-act="start-workout">Start workout</button>` : ""}
+      ${!dr.editing && S.data.program.warmup && (dr.exercises.length || (dr.drills || []).length) ? `<button type="button" class="row-link warmup-link" data-act="warmup-info" data-gym="${dr.exercises.some((x) => exInfo(x.name, x.ref).pattern !== "plyo") ? 1 : 0}"><span class="row-name">Warm-up first</span><span class="dose muted">${routineMin(S.data.program.warmup)} min</span></button>` : ""}
       ${dr.type === "sport" ? `<div class="ex-block sport">
         <div class="form-grid">
           <label class="field"><span>Sport</span><input data-sf="name" value="${esc(dr.sport?.name || "")}" placeholder="Soccer"></label>
@@ -1353,7 +1357,20 @@
       <p class="small muted">Type it in the Effort column. The app uses it to choose next week's weights.</p>` };
   };
 
-  sheets.warmup = () => ({ title: "Warm-up", body: `<ol class="cues">${String(S.data.program.warmup || "").replace(/^\d+\s*min:\s*/i, "").split(/,\s*(?:then\s*)?|\.\s*/).filter((x) => x.trim()).map((x) => `<li>${esc(cap(x.trim()))}</li>`).join("")}</ol><p class="small muted">About 10 minutes. Warm muscles move better and get hurt less.</p>` });
+  // Warm-up and cool-down: program.json `warmup` / `cooldown` =
+  // {minutes, note?, steps: [{title, how?, items?: [{name, dose}], gym? (only on gym days)}]}; an old plain-text warm-up still works.
+  const routineMin = (r) => (r && typeof r === "object" ? r.minutes || 10 : 10);
+  function routineBody(r, gym, search) {
+    if (!r) return '<div class="empty">Not in the plan.</div>';
+    if (typeof r === "string") return `<ol class="cues">${r.replace(/^\d+\s*min:\s*/i, "").split(/,\s*(?:then\s*)?|\.\s*/).filter((x) => x.trim()).map((x) => `<li>${esc(cap(x.trim()))}</li>`).join("")}</ol><p class="small muted">About 10 minutes. Warm muscles move better and get hurt less.</p>`;
+    const steps = (r.steps || []).filter((s) => gym || !s.gym);
+    return `<ol class="routine">${steps.map((s) => `<li><b>${esc(s.title)}</b>
+        ${s.how ? `<p class="small muted">${esc(s.how)}</p>` : ""}
+        ${s.items?.length ? `<ul class="ex-list routine-items">${s.items.map((it) => `<li><a href="${esc(videoUrl(it.name, null, search))}" target="_blank" rel="noopener noreferrer">${esc(it.name)}</a><span class="dose muted">${esc(it.dose || "")}</span></li>`).join("")}</ul>` : ""}</li>`).join("")}</ol>
+      ${r.note ? `<p class="small muted">${esc(r.note)}</p>` : ""}`;
+  }
+  sheets.warmup = (s) => ({ title: "Warm-up", body: routineBody(S.data.program.warmup, s.gym !== false, "warm up how to") });
+  sheets.cooldown = () => ({ title: "After your workout", body: routineBody(S.data.program.cooldown, true, "stretch how to") });
 
   const DRILL_HOW = {
     intervals: "Fast = hard but controlled, about 8/10. Easy = walk or slow jog until the next round.",
@@ -1538,7 +1555,8 @@
     // detail sheets
     if (a === "add-drill") openSheet({ type: "drill-picker" }, { opener: t });
     if (a === "effort-info") openSheet({ type: "effort" }, { push: inSheet, opener: t });
-    if (a === "warmup-info") openSheet({ type: "warmup" }, { push: inSheet, opener: t });
+    if (a === "warmup-info") openSheet({ type: "warmup", gym: t.dataset.gym !== "0" }, { push: inSheet, opener: t });
+    if (a === "cooldown-info") openSheet({ type: "cooldown" }, { push: inSheet, opener: t });
     if (a === "drill-info") openSheet({ type: "drill", dow: t.dataset.dow, k: +t.dataset.k }, { push: inSheet, opener: t });
     if (a === "day-info") openSheet({ type: "day", dow: t.dataset.dow }, { opener: t });
     if (a === "how-info") openSheet({ type: "how" }, { opener: t });
