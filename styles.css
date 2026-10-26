@@ -154,22 +154,10 @@ main { max-width: 980px; margin: 0 auto; padding: var(--space) var(--gutter-r) v
 @media (min-width: 760px) { .ex-list .dose { max-width: 28em; } }
 .ex-list .note { grid-column: 1 / -1; font-size: 13px; color: var(--ink-3); }
 
-/* flags */
+/* coach card */
 .coach-btn { width: 100%; }
 .coach-btn svg { color: var(--accent); }
 .coach-hint { margin: 8px 0 0; text-align: center; }
-.coach-flags { margin-top: 16px; }
-.flag { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 14px; }
-.flag + .flag { margin-top: 8px; }
-.flag svg { flex: none; width: 18px; height: 18px; margin-top: 2px; }
-.flag.warn svg { color: var(--warning); }
-.flag.info svg { color: var(--series-1); }
-.flags-cap { margin: 2px 0 10px; }
-.flag-body { display: grid; gap: 2px; min-width: 0; }
-.flag-title { font-weight: 600; }
-.flag-when { font-size: 13px; color: var(--ink-3); }
-.flag-quote { display: block; margin: 6px 0 4px; padding-left: 10px; border-left: 2px solid var(--line); font-style: italic; color: var(--ink-2); }
-.flag-text { color: var(--ink-2); }
 
 /* buttons & forms */
 .btn {
@@ -307,7 +295,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* long words (error messages, food names, URLs) wrap instead of widening the page */
 main { overflow-x: clip; }
-.pending > div, .ex-list li > span, .flag span, .banner { min-width: 0; overflow-wrap: anywhere; }
+.pending > div, .ex-list li > span, .banner { min-width: 0; overflow-wrap: anywhere; }
 
 /* phone: action buttons share the row instead of leaving one stranded on its own line */
 @media (max-width: 759px) {
