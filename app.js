@@ -365,7 +365,25 @@
     const lib = libEntry(ref, name);
     if (!lib) return { muscles: [], step_lb: 5, alternatives: [], cues: [] };
     const lower = lib.groups.some((g) => ["quads", "hamstrings", "glutes"].includes(g));
-    return { muscles: lib.groups, ref: lib.id, step_lb: lib.equipment === "body only" ? 0 : lib.equipment === "barbell" && lower ? 10 : 5, per_hand: lib.equipment === "dumbbell", alternatives: [], cues: [] };
+    const load = ({ barbell: "bar", "e-z curl bar": "bar", kettlebells: "one", cable: "stack", machine: "stack", "medicine ball": "ball", "body only": "none" })[lib.equipment];
+    return { muscles: lib.groups, ref: lib.id, step_lb: lib.equipment === "body only" ? 0 : lib.equipment === "barbell" && lower ? 10 : 5, per_hand: lib.equipment === "dumbbell", load, alternatives: [], cues: [] };
+  }
+  // What number goes in the weight box (exercises.json `load`): head = the column label, hint = one plain line.
+  function loadRule(info) {
+    const u = loadUnit(), kg = u === "kg";
+    const kind = info?.load || (info?.per_hand ? "each" : "");
+    return ({
+      bar: { head: `${u} total`, hint: `Weight: bar + plates. An empty bar is ${kg ? "20 kg" : "45 lb"}.` },
+      each: { head: `${u} each`, hint: `Weight: one dumbbell. Two ${kg ? "12 kg" : "30 lb"} dumbbells = ${kg ? "12" : "30"}.` },
+      one: { head: u, hint: "Weight: the one dumbbell or kettlebell you hold." },
+      stack: { head: u, hint: "Weight: the number on the stack." },
+      stack_each: { head: `${u} each`, hint: "Weight: one side's stack." },
+      plates: { head: u, hint: "Weight: only the plates you add, not the machine." },
+      assist: { head: `${u} help`, hint: "Weight: the machine's help. Less help = harder." },
+      held: { head: u, hint: "Weight: the plate you hold. Leave blank for none." },
+      ball: { head: u, hint: "Weight: the ball." },
+      none: { head: "", hint: "", none: true },
+    })[kind] || { head: u, hint: "" };
   }
   // Phase week from the profile's start date (same rule as analyze.py), so it's right even before the report refreshes.
   function phaseWeek() {
@@ -726,6 +744,9 @@
       const hint = nums ? (nums.lo === nums.hi ? String(nums.hi) : `${nums.lo}-${nums.hi}`) : "";
       const col = { reps: "Reps", sec: "Sec", m: "Meters" }[unit];
       const meta = [ex.planReps ? `${esc(ex.planSets ?? ex.sets.length)} × ${esc(ex.planReps)}` : "", sg?.last ? `last ${esc(sg.last.text.replace(/ @ RPE.*/, ""))}` : ""].filter(Boolean).join(" · ");
+      const lr = loadRule(exInfo(ex.name, ex.ref));
+      // bodyweight moves: no weight box (unless an old log line had one)
+      const noLoad = lr.none && ex.sets.every((st) => st.load === "" || st.load == null);
       return `
         <div class="ex-block">
           <div class="ex-head">
@@ -735,11 +756,12 @@
           </div>
           ${ex.swappedFrom ? `<div class="small muted ex-meta">${icon.swap} instead of ${esc(ex.swappedFrom)}</div>` : ""}
           ${meta ? `<div class="small muted ex-meta">${meta}</div>` : ""}
-          <div class="set-row set-head"><span>#</span><span>${col}</span><span>${u}</span><button type="button" class="head-btn" data-act="effort-info">Effort</button><span></span></div>
+          ${lr.hint && !noLoad ? `<div class="small muted ex-meta">${esc(lr.hint)}</div>` : ""}
+          <div class="set-row set-head"><span>#</span><span>${col}</span><span>${noLoad ? "" : esc(lr.head || u)}</span><button type="button" class="head-btn" data-act="effort-info">Effort</button><span></span></div>
           ${ex.sets.map((st, j) => `<div class="set-row${st.done ? " is-done" : ""}">
             <span class="muted small">${j + 1}</span>
             <input type="number" inputmode="numeric" data-ex="${i}" data-set="${j}" data-f="reps" value="${esc(st.reps)}" placeholder="${esc(hint)}" aria-label="${col} set ${j + 1}">
-            <input type="number" inputmode="decimal" step="any" data-ex="${i}" data-set="${j}" data-f="load" value="${esc(st.load)}" class="${st.auto ? "is-auto" : ""}" aria-label="Weight set ${j + 1}${st.auto ? ", suggested" : ""}">
+            ${noLoad ? '<span class="no-load" title="Bodyweight: no weight to log">–</span>' : `<input type="number" inputmode="decimal" step="any" data-ex="${i}" data-set="${j}" data-f="load" value="${esc(st.load)}" class="${st.auto ? "is-auto" : ""}" aria-label="${esc(lr.hint ? lr.hint.replace(/^Weight: /, "Weight, ") : "Weight")} Set ${j + 1}${st.auto ? ", suggested" : ""}">`}
             <input type="number" inputmode="decimal" step="0.5" min="1" max="10" data-ex="${i}" data-set="${j}" data-f="rpe" value="${esc(st.rpe)}" placeholder="${esc(ctx.targetRpe)}" aria-label="Effort set ${j + 1}, out of 10">
             ${doneBtn("set-done", `data-ex="${i}" data-set="${j}"`, st.done, `Set ${j + 1} done`)}
           </div>`).join("")}
@@ -1189,9 +1211,10 @@
     const fromLog = s.ex != null && S.draft?.exercises[s.ex]?.name === s.name;
     const reps = fromLog ? S.draft.exercises[s.ex].planReps : planReps(s.name);
     const sg = suggestFor(s.name, reps, ref);
-    const note = planNote(s.name);
+    const note = planNote(s.name), lr = loadRule(info);
     const hist = window.Progression ? Progression.history(S.data.workouts, s.name).slice(-5).reverse() : [];
-    const best = (sets) => Math.max(0, ...sets.map((st) => epley(+st.load_kg || 0, +st.reps || 0)));
+    // e1RM means nothing when the number is the machine's help
+    const best = (sets) => (info.load === "assist" ? 0 : Math.max(0, ...sets.map((st) => epley(+st.load_kg || 0, +st.reps || 0))));
     const alts = (info.alternatives || []).filter((a) => a !== s.name);
     const tags = [...new Set(info.muscles?.length ? info.muscles : lib?.groups || [])];
     const pick = S.sheet.find((x) => x.type === "picker");
@@ -1206,6 +1229,7 @@
       ${sg && sg.kind !== "none" ? `<section><h3>Today</h3>
         <div class="target-line"><b>${sg.kind === "first" ? (info.step_lb === 0 || info.start === "bodyweight" ? "Learn the move" : "Find your weight") : esc([sg.load != null ? sg.short : "", sg.targetReps ? `${sg.load != null ? "× " : ""}${sg.targetReps}${sg.load != null ? "" : "+"} reps` : ""].filter(Boolean).join(" "))}</b></div>
         ${note ? `<p>${esc(note)}</p>` : ""}
+        ${lr.hint ? `<p class="small">${esc(lr.hint)}</p>` : ""}
         <p class="small muted">${esc(sg.text)}</p>
         ${sg.last ? `<p class="small muted">Last time (${esc(fmtDay(sg.last.date))}): ${esc(sg.last.text)}</p>` : ""}</section>` : ""}
       ${info.cues?.length ? `<section><h3>Coach cues</h3><ul class="cues">${info.cues.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}

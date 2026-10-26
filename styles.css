@@ -197,6 +197,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { margin-left: auto; }
 .form-grid .full { grid-column: 1 / -1; }
 .set-row { display: grid; grid-template-columns: 28px 1fr 1fr 1fr 36px; gap: 6px; align-items: center; margin-top: 6px; }
 .set-row input { height: 40px; padding: 8px; text-align: center; }
+.set-row .no-load { text-align: center; color: var(--ink-3); }
 .set-row > span:first-child { text-align: center; }
 .set-head { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); text-align: center; margin-top: 12px; }
 .icon-btn { position: relative; flex: none; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--ink-2); }

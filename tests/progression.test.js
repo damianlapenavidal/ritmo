@@ -125,6 +125,29 @@ t("bodyweight-start move: all reps with no weight -> hold the first step", () =>
   assert.strictEqual(P.suggest({ name: "Back Extension", reps: "10-12", info, workouts: done, targetRpe: 6, unit: "kg" }).load, 2.5);
 });
 
+t("assisted machine: less help is the step up, more help on a deload or after misses", () => {
+  const info = { step_lb: 10, load: "assist" };
+  const first = P.suggest({ name: "Assisted Pull-up", reps: "6-8", info, workouts: [], targetRpe: 6, unit: "lb" });
+  assert.match(first.text, /pick the help/);
+  const hit = [session("2026-10-26", "Assisted Pull-up", sets(60, [8, 8, 8], 6))];
+  const up = P.suggest({ name: "Assisted Pull-up", reps: "6-8", info, workouts: hit, targetRpe: 6, unit: "lb" });
+  assert.strictEqual(up.kind, "up");
+  assert.strictEqual(up.load, 50);
+  assert.strictEqual(up.short, "50 lb help");
+  assert.match(up.text, /less help, 50 lb/);
+  assert.strictEqual(P.suggest({ name: "Assisted Pull-up", reps: "6-8", info, workouts: hit, targetRpe: 6, deload: true, unit: "lb" }).load, 70);
+  const miss = [session("2026-10-19", "Assisted Pull-up", sets(50, [6, 5, 5], 8)), session("2026-10-26", "Assisted Pull-up", sets(50, [5, 5, 4], 8))];
+  const down = P.suggest({ name: "Assisted Pull-up", reps: "6-8", info, workouts: miss, targetRpe: 7, unit: "lb" });
+  assert.strictEqual(down.kind, "down");
+  assert.strictEqual(down.load, 60);
+  const last = [session("2026-10-26", "Assisted Pull-up", sets(10, [8, 8, 8], 6))];
+  const free = P.suggest({ name: "Assisted Pull-up", reps: "6-8", info, workouts: last, targetRpe: 6, unit: "lb" });
+  assert.strictEqual(free.load, 0);
+  assert.match(free.text, /no help/);
+  const noHelp = [session("2026-11-02", "Assisted Pull-up", sets(0, [8, 8, 8], 6))];
+  assert.doesNotMatch(P.suggest({ name: "Assisted Pull-up", reps: "6-8", info, workouts: noHelp, targetRpe: 6, unit: "lb" }).text, /hold/);
+});
+
 t("target reps for the done tap", () => {
   const up = [session("2026-10-26", "Trap Bar Deadlift", sets(185, [5, 5, 5], 6))];
   assert.strictEqual(P.suggest({ name: "Trap Bar Deadlift", reps: "5", info: tbd, workouts: up, targetRpe: 6, unit: "lb" }).targetReps, 5);

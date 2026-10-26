@@ -66,7 +66,10 @@
     const target = Number(opts.targetRpe) || 7;
     const base = { last: lastInfo, range, load: null, targetReps: range ? range.lo : null };
     if (!range) return { ...base, kind: "none", short: "", text: "" };
+    // load: "assist" = assisted machines (pull-ups, dips): the number is the help, so less is harder
+    const assist = info.load === "assist";
     if (!last) {
+      if (assist) return { ...base, kind: "first", short: "first time", text: `First time: pick the help where you could do ${target <= 6 ? "3-4" : "2-3"} more reps (about RPE ${fmtNum(target)}). Less help = harder.` };
       // start: "bodyweight" = moves like back extensions: no weight until the reps are easy
       const text = (Number(info.step_lb) || 0) > 0 && info.start !== "bodyweight"
         ? `First time: pick a load you could lift for ${target <= 6 ? "3-4" : "2-3"} more reps (about RPE ${fmtNum(target)}).`
@@ -87,7 +90,7 @@
 
     if (bodyweight) {
       // done with no weight but the move can take some (a plate or dumbbell): the first step up is step_lb
-      if (allTop && rpeOk && stepLb > 0) {
+      if (allTop && rpeOk && stepLb > 0 && !assist) {
         const load = unit === "lb" ? stepLb : Math.max(1.25, roundTo(stepLb / LB, 1.25));
         const s = `${fmtNum(load)} ${unit}${info.per_hand ? " each" : ""}`;
         return { ...base, kind: "up", load, targetReps: range.lo, short: s, text: `You hit ${range.hi} on every set with no weight: hold ${s} today (a plate or dumbbell).` };
@@ -100,7 +103,21 @@
     const lastLoad = toUnit(topKg, unit);
     const step = unit === "lb" ? stepLb : Math.max(1.25, roundTo(stepLb / LB, 1.25));
     const per = info.per_hand ? " per dumbbell" : "";
-    const short = (load) => `${fmtNum(load)} ${unit}${info.per_hand ? " each" : ""}`;
+    const short = (load) => `${fmtNum(load)} ${unit}${info.per_hand ? " each" : assist ? " help" : ""}`;
+    if (assist) {
+      // everything runs the other way: going up = less help, easing off = more help
+      const rnd = (v) => Math.max(0, roundTo(v, unit === "lb" ? 2.5 : 1.25));
+      const prevA = hist[hist.length - 2];
+      const prevMissA = prevA && prevA.sets.some((s) => +s.reps < range.lo);
+      if (opts.deload) { const load = rnd(lastLoad + step); return { ...base, kind: "deload", load, short: short(load), text: `Deload week: a bit more help, ${fmtNum(load)} ${unit}.` }; }
+      if (missLow && prevMissA) { const load = rnd(lastLoad + step); return { ...base, kind: "down", load, short: short(load), text: `Missed ${range.lo} reps two sessions in a row: more help, ${fmtNum(load)} ${unit}, and build back up.` }; }
+      if (allTop && rpeOk) {
+        const load = rnd(lastLoad - step);
+        return { ...base, kind: "up", load, targetReps: range.lo, short: load > 0 ? short(load) : "no help", text: load > 0 ? `You hit ${range.hi} on every set: less help, ${fmtNum(load)} ${unit} today.` : `You hit ${range.hi} on every set: try it with no help today.` };
+      }
+      const load = rnd(lastLoad);
+      return { ...base, kind: "hold", load, targetReps: allTop ? range.hi : Math.min(best + 1, range.hi), short: short(load), text: allTop ? `Reps were there but it felt hard: same help, ${fmtNum(load)} ${unit}.` : `Same help, more reps: aim for ${Math.min(best + 1, range.hi)}+ until every set hits ${range.hi}.` };
+    }
     if (opts.deload) {
       const load = Math.max(plate(unit), roundTo(lastLoad * 0.8, plate(unit)));
       return { ...base, kind: "deload", load, short: short(load), text: `Deload week: about 80% of last time, ${fmtNum(load)} ${unit}${per}.` };
