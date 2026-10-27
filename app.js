@@ -53,8 +53,7 @@
   const COACH_ENV = "Quick";
   const coachSessionUrl = () => {
     const owner = S.cfg?.owner || "damianlapenavidal", repo = S.cfg?.repo || "fitness-coach";
-    // the app picks the session's model itself (an environment variable can't), so the first message is pre-typed: /model haiku
-    return `https://claude.ai/code?${new URLSearchParams({ prompt: "/model haiku", repositories: `${owner}/${repo},${owner}/ritmo`, environment: COACH_ENV }).toString().replace(/\+/g, "%20")}`;
+    return `https://claude.ai/code?${new URLSearchParams({ repositories: `${owner}/${repo},${owner}/ritmo`, environment: COACH_ENV })}`;
   };
   const PHOTO_MAX = 1024; // long edge in px; enough detail for food, small upload
 
