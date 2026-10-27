@@ -1476,6 +1476,14 @@
     const r = S.data?.report;
     $("#phase-label").textContent = r ? `${phaseName(r.phase)}${r.phase_week ? ` · wk ${r.phase_week}` : ""}${live() ? "" : " · demo"}` : "";
     $("#view").innerHTML = S.data || v === "settings" ? views[v]() : '<div class="empty">Loading…</div>';
+    if (S.slide) {
+      // a swipe: slide the new section in from the side it came from (a fade when a workout bar is on screen, since a
+      // transformed parent would move that fixed bar for a moment)
+      const el = $("#view"), cls = el.querySelector(".workout-bar") ? "fade-in" : S.slide;
+      el.classList.remove("slide-l", "slide-r", "fade-in"); void el.offsetWidth; el.classList.add(cls);
+      el.addEventListener("animationend", () => el.classList.remove(cls), { once: true });
+      S.slide = null;
+    }
     if (S.data) after[v]?.(); // charts need data; skip while loading
   }
   function go(view) { location.hash = view; }
@@ -1853,6 +1861,36 @@
       if (startY != null && ptr.classList.contains("ready")) refresh({ manual: true });
       reset();
     });
+  })();
+  // Swipe sideways to move between sections, in tab-bar order (swipe left = next tab, swipe right = previous).
+  // Only a clear sideways flick counts, so scrolling never changes the tab. Ignored near the screen edges (iPhone's own
+  // gestures), with a sheet open or the keyboard up, and when it starts on something that already uses sideways drags:
+  // sliders, segmented controls, scrolling rows and tables, and charts (tap/drag tooltips). Starting on an unfocused field is fine:
+  // a moved touch doesn't focus it.
+  (() => {
+    const TABS = [...document.querySelectorAll(".tabs .tab")].map((b) => b.dataset.view);
+    const EDGE = 24, MIN_DX = 60, MAX_MS = 800;
+    const SKIP = 'input[type="range"], [contenteditable="true"], .seg, .table-wrap, .chip-row, [id^="ch-"], #muscles, #bench';
+    let s = null;
+    window.addEventListener("touchstart", (e) => {
+      s = null;
+      if (e.touches.length !== 1 || S.sheet.length || !TABS.includes(S.view)) return;
+      if (document.activeElement?.matches?.("input, textarea, select")) return;
+      const t = e.touches[0];
+      if (t.clientX < EDGE || t.clientX > window.innerWidth - EDGE || e.target.closest?.(SKIP)) return;
+      s = { x: t.clientX, y: t.clientY, at: Date.now() };
+    }, { passive: true });
+    window.addEventListener("touchcancel", () => { s = null; }, { passive: true });
+    window.addEventListener("touchend", (e) => {
+      if (!s) return;
+      const t = e.changedTouches[0], dx = t.clientX - s.x, dy = t.clientY - s.y, quick = Date.now() - s.at < MAX_MS;
+      s = null;
+      if (!quick || Math.abs(dx) < MIN_DX || Math.abs(dx) < 1.8 * Math.abs(dy) || S.sheet.length) return;
+      const next = TABS[TABS.indexOf(S.view) + (dx < 0 ? 1 : -1)];
+      if (!next) return;
+      S.slide = dx < 0 ? "slide-l" : "slide-r";
+      go(next);
+    }, { passive: true });
   })();
   let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => S.data && after[S.view]?.(), 200); });
 
