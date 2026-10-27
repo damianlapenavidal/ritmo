@@ -478,6 +478,12 @@
       <span><b>${label} in progress</b><br><span class="small">${esc(p?.text || "started")}${dr.date !== today() && !dr.editing ? ` · from ${esc(fmtDay(dr.date))}` : ""}</span></span>${icon.chevron}</button>`;
   }
 
+  // Today stays short: one line about the session; the full list lives in Plan → that day (the same sheet opens from here).
+  function todaySummary(sess, dow) {
+    const n = sess.blocks.length, mins = sess.type === "lift" ? S.data.profile?.schedule?.session_minutes || 60 : null;
+    return `<ul class="ex-list tap-list"><li><button type="button" class="row-link" data-act="day-info" data-dow="${esc(dow)}">
+      <span class="row-name">${n} exercise${n === 1 ? "" : "s"}${mins ? ` · about ${mins} min` : ""}</span><span class="dose muted">See the plan</span></button></li></ul>`;
+  }
   views.today = () => {
     const d = S.data, iso = today();
     const dow = dowOf(iso);
@@ -500,7 +506,7 @@
         <h1>${esc(train ? title : sess.name)}</h1>
         ${train ? `<p class="subline">${esc(sub)}${effort ? `${sub ? " · " : ""}<button type="button" class="link-btn" data-act="effort-info">effort ${esc(effort)}/10</button>` : ""}</p>` : ""}</div>
       <section class="card">
-        ${train ? sessionList(sess, dow) : `<p class="muted" style="margin:0">${/busy/i.test(sess.name) ? "Busy day: nothing planned." : "Rest day."} A walk always counts.</p>`}
+        ${train ? todaySummary(sess, dow) : `<p class="muted" style="margin:0">${/busy/i.test(sess.name) ? "Busy day: nothing planned." : "Rest day."} A walk always counts.</p>`}
         <div class="session-actions">
           ${inProgress ? `<button class="btn primary" data-act="goto-log" data-tab="workout">Continue workout</button>`
             : todayIdx != null ? `<button class="btn primary" data-act="edit-workout" data-idx="${todayIdx}">${icon.check} Logged · Edit</button>`
