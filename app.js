@@ -926,8 +926,7 @@
       ${scale("soreness", "Soreness (1 none, 5 very sore)")}
       <label class="field"><span>Notes</span><textarea name="notes" placeholder="Pain anywhere? Stress? Sick?"></textarea></label>
       <p class="small muted">Weigh yourself after the bathroom, before eating.</p>
-      <div class="btn-row"><button class="btn primary" type="submit">Save morning check</button>${stepsLink("Send steps", "btn")}</div>
-      <p class="small muted">Send steps also fills in a night your phone missed.</p>`;
+      <div class="btn-row"><button class="btn primary" type="submit">Save morning check</button></div>`;
   }
 
   function testForm() {
@@ -954,9 +953,7 @@
     perweek: { title: "Sessions per week", html: () => `<section class="card"><div class="card-head"><h2>Sessions per week</h2></div><div id="ch-sessions"></div></section>` },
     conditioning: { title: "Conditioning minutes", html: () => `<section class="card"><div class="card-head"><h2>Conditioning minutes</h2></div><div id="ch-cond"></div></section>` },
     steps: { title: "Steps", html: () => `<section class="card"><div class="card-head"><h2>Steps</h2><span class="small muted">${stepsHead()}</span></div><div id="ch-steps"></div>
-      ${lastStepsDay() ? `<p class="small muted">From your iPhone. Last day synced: <b>${esc(fmtDay(lastStepsDay()))}</b>. Missing a day? Tap Send steps.</p>`
-        : `<p class="small muted">Not synced yet. Set up the iPhone Shortcut in your repo's SETUP.md (section 7) to send your daily steps.</p>`}
-      ${stepsLink("Send steps now")}</section>` },
+      <p class="small muted">${Object.keys(S.data.steps || {}).length ? "From your iPhone's Health app, synced at night. Casual walking counts." : "Not synced yet. Set up the iPhone Shortcut in your repo's SETUP.md (section 7) to send your daily steps."}</p></section>` },
     sets: { title: "Hard sets this week", html: () => `<section class="card"><div class="card-head"><h2>Hard sets this week</h2><span class="small muted">line = 10-set reference</span></div><div id="muscles"></div></section>` },
     bench: { title: "Benchmarks", html: () => `<section class="card"><div class="card-head"><h2>Benchmarks</h2></div><div id="bench" class="table-wrap"></div></section>` },
   };
@@ -976,11 +973,6 @@
       ${store.get("ritmo.progressOrder", null) ? '<button type="button" class="btn ghost wide" data-act="progress-reset">Back to the default order</button>' : ""}`;
   };
 
-  // Steps come from the iPhone Shortcut "Send steps to Ritmo" (private repo SETUP.md, section 7). iPhone won't let a shortcut read
-  // Health data while the phone is locked, so a night run can fail silently; this button runs it while he's in the app (phone unlocked).
-  const STEPS_SHORTCUT = "Send steps to Ritmo";
-  const stepsLink = (label, cls = "btn") => `<a class="${cls}" href="shortcuts://run-shortcut?name=${encodeURIComponent(STEPS_SHORTCUT)}">${esc(label)}</a>`;
-  function lastStepsDay() { const days = Object.keys(S.data.steps || {}).sort(); return days[days.length - 1] || null; }
   function stepsHead() {
     const st = S.data.steps || {}, iso = today();
     const vals = Array.from({ length: 7 }, (_, i) => st[addDays(iso, -i)]).filter((v) => v != null);
