@@ -48,8 +48,13 @@
   icon.chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
   // The coach is a Claude Project; the app can only open it. Weekly check-ins run as a scheduled task, so this is for questions.
   // claude.ai/project/* isn't a universal link (it opens Safari), so the button uses the claude:// scheme to reach the iPhone app.
-  // Saved as the project link; a pasted ".../new" link is accepted too. The Claude app doesn't open <project>/new deep links, so Ask coach opens the project page (its message box starts a new chat in the project).
-  const coachUrl = (link) => { try { const u = new URL(String(link || "").trim()); const m = u.pathname.match(/^\/project\/([\w-]+)(?:\/new)?\/?$/); return u.protocol === "https:" && u.hostname === "claude.ai" && m ? `https://claude.ai/project/${m[1]}` : null; } catch { return null; } };
+  // Ask coach opens a new Claude cloud session with both repos (live data, can change the plan) in the "Quick" environment
+  // (Haiku), per claude.ai/code's pre-fill parameters. Damian's choice: every new coach chat is one of these.
+  const COACH_ENV = "Quick";
+  const coachSessionUrl = () => {
+    const owner = S.cfg?.owner || "damianlapenavidal", repo = S.cfg?.repo || "fitness-coach";
+    return `https://claude.ai/code?${new URLSearchParams({ repositories: `${owner}/${repo},${owner}/ritmo`, environment: COACH_ENV })}`;
+  };
   const PHOTO_MAX = 1024; // long edge in px; enough detail for food, small upload
 
   function toast(msg, ms = 2600) {
@@ -523,10 +528,8 @@
         ${statTile("This week", doneWeek.length, `/ ${planned} sessions`, "", (100 * doneWeek.length) / Math.max(planned, 1))}
       </div>
       <section class="card"><div class="card-head"><h2>Coach</h2></div>
-        ${coachUrl(d.profile.coach_project_url)
-          ? `<a class="btn coach-btn" href="${esc(coachUrl(d.profile.coach_project_url).replace("https://", "claude://"))}">${icon.chat}Ask coach</a>`
-          : `<a class="btn coach-btn" href="#settings">${icon.chat}Add your coach link</a>
-             <p class="small muted coach-hint">Paste your Workout + Nutrition project link in Settings to ask the coach from here.</p>`}
+        <a class="btn coach-btn" href="${esc(coachSessionUrl())}" target="_blank" rel="noopener">${icon.chat}Ask coach</a>
+        <p class="small muted coach-hint">Opens a new coach session with your latest data.</p>
       </section>
     `;
   };
@@ -1178,9 +1181,7 @@
           <label class="field"><span>Gym load unit</span><select name="load"><option value="lb" ${loadUnit() === "lb" ? "selected" : ""}>lb</option><option value="kg" ${loadUnit() === "kg" ? "selected" : ""}>kg</option></select></label>
           <label class="field"><span>Distance unit</span><select name="distance"><option value="km" ${distUnit() === "km" ? "selected" : ""}>km</option><option value="mi" ${distUnit() === "mi" ? "selected" : ""}>mi</option></select></label>
           <div class="field full"><span class="pace-label">Phase</span><p class="small" style="margin:4px 0 0">${esc(phaseName(p.phase?.current || ""))}${phaseWeek() > 0 ? `, week ${phaseWeek()}` : p.phase?.start_date ? `, starts ${esc(fmtDay(p.phase.start_date))}` : ""}. <a href="#plan">Change it in Plan → Programs</a>.</p></div>
-          <label class="field full"><span>Coach project link</span><input type="url" name="coach_project_url" value="${esc(p.coach_project_url || "")}" placeholder="https://claude.ai/project/…" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
         </div>
-        <p class="small muted">Open your Workout + Nutrition project on claude.ai, copy its address and paste it here. It's saved in your private repo, so every phone gets the Ask coach button.</p>
         <div class="btn-row"><button class="btn primary" type="submit">Save profile</button></div>
       </form>` : ""}`;
   };
@@ -1748,10 +1749,7 @@
       }
       if (f.id === "profile-form") {
         const fd = Object.fromEntries(new FormData(f));
-        const link = (fd.coach_project_url || "").trim();
-        if (link && !coachUrl(link)) { toast("Not a claude.ai project link"); return; }
         const p = structuredClone(S.data.profile);
-        if (link) p.coach_project_url = coachUrl(link); else delete p.coach_project_url;
         p.sex = fd.sex || null; p.birth_year = +fd.birth_year || null; p.height_cm = +fd.height_cm || null; p.start_weight_kg = +fd.start_weight_kg || null;
         p.units = { ...(p.units || {}), load: fd.load, distance: fd.distance };
         S.data.profile = p;
