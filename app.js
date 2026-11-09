@@ -823,6 +823,9 @@
         </div>`;
     };
     const showDrills = (dr.drills || []).map((b, k) => [b, k]).filter(([b]) => dr.type !== "sport" || drillTouched(b) || !b.planned);
+    // Plan order in the Log too: sprints and agility before the exercises, other cardio (bike, intervals) after them
+    const early = ([b]) => !dr.exercises.length || ["sprints", "agility"].includes(b.kind);
+    const drillsFirst = showDrills.filter(early), drillsAfter = showDrills.filter((x) => !early(x));
     const est = estMinutes(dr), p = draftProgress(dr);
     const doneSets = dr.exercises.reduce((n, x) => n + x.sets.filter((st) => st.done).length, 0) + (dr.drills || []).filter((b) => b.done).length;
     const allSets = dr.exercises.reduce((n, x) => n + x.sets.length, 0) + showDrills.length;
@@ -847,8 +850,9 @@
         <div class="chip-row" role="group" aria-label="Format" style="margin-top:12px">${FORMATS.map(([v, l]) => `<button type="button" class="chip" data-act="sport-format" data-v="${v}" aria-pressed="${dr.sport?.format === v}">${l}</button>`).join("")}</div>
       </div>` : ""}
       ${firstTime ? `<p class="small muted tip">Tap ${icon.check} after each set.</p>` : ""}
-      ${showDrills.length ? `<div>${showDrills.map(([b, k]) => drill(b, k)).join("")}</div>` : ""}
+      ${drillsFirst.length ? `<div>${drillsFirst.map(([b, k]) => drill(b, k)).join("")}</div>` : ""}
       ${dr.exercises.length ? `<div>${dr.exercises.map(block).join("")}</div>` : ""}
+      ${drillsAfter.length ? `<div>${drillsAfter.map(([b, k]) => drill(b, k)).join("")}</div>` : ""}
       <div class="add-row">
         <button type="button" class="btn" data-act="add-ex">+ Exercise</button>
         <button type="button" class="btn" data-act="add-drill">+ Cardio</button>
