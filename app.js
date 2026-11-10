@@ -264,7 +264,11 @@
     const text = !ph ? (m.description || "").trim() : "";
     if (!ph && text.length < 3) throw new Error("Write what you ate");
     const place = !m.location ? (m.place || "").trim() : "";
-    const id = `${m.date}-${Date.now().toString(36)}`;
+    // Same meal sent again (after an error) keeps its id, so a send that secretly worked is never logged twice
+    const key = [m.date, m.meal, ph ? `${ph.dataUrl.length}:${ph.dataUrl.slice(-64)}` : text].join("|");
+    const again = m.sendKey === key && !!m.sendId;
+    if (!again) { m.sendKey = key; m.sendId = `${m.date}-${Date.now().toString(36)}`; }
+    const id = m.sendId;
     const thumb = ph ? await (async () => { try { const r = await fetch(ph.dataUrl); return await resizeImage(await r.blob(), 160, 0.7); } catch { return null; } })() : null;
     const entry = { id, date: m.date, meal: m.meal, note: (m.note || "").trim(), location: m.location || undefined, place: place || undefined, text: text || undefined, thumb, at: Date.now() };
     if (!live()) {
@@ -279,9 +283,28 @@
     }
     const payload = { id, date: m.date, meal: m.meal, ...(entry.location ? { location: entry.location } : {}), ...(place ? { place } : {}),
       ...(ph ? { note: entry.note, media_type: "image/jpeg", image_b64: ph.dataUrl.split(",")[1] } : { description: text }), uploaded_at: new Date().toISOString() };
-    await putFile(`inbox/meals/${id}.json`, JSON.stringify(payload), null, `${ph ? "photo" : "meal"}: ${m.meal} ${m.date}`);
-    S.pending.push(entry); savePending();
+    // A slow connection can save the upload and still answer with an error (Nov 10: 30 s, then "GitHub 405").
+    // So before calling it a failure, and before re-sending, look for it in the repo.
+    const landed = async () => { try { return await mealLanded(id); } catch { return false; } };
+    if (!(again && await landed())) {
+      try { await putFile(`inbox/meals/${id}.json`, JSON.stringify(payload), null, `${ph ? "photo" : "meal"}: ${m.meal} ${m.date}`); }
+      catch (e) {
+        await new Promise((r) => setTimeout(r, 2500));
+        if (!(await landed())) throw e;
+      }
+    }
+    if (!S.pending.some((p) => p.id === id)) { S.pending.push(entry); savePending(); }
     schedulePoll();
+  }
+  // Is this upload in the repo: still in the inbox, already estimated, or waiting with an error?
+  async function mealLanded(id) {
+    const [dir, log, errs] = await Promise.all([
+      fetch(`${api("inbox/meals")}?ref=${encodeURIComponent(S.cfg.branch)}`, { headers: headers("application/vnd.github+json"), cache: "no-store" })
+        .then((r) => { if (r.status === 404) return []; if (!r.ok) throw new Error(`GitHub ${r.status}`); return r.json(); }),
+      readText("logs/nutrition.jsonl"), readJSON("inbox/errors.json", {}),
+    ]);
+    return (Array.isArray(dir) && dir.some((f) => f.name === `${id}.json`))
+      || parseJsonl(log).some((r) => r.request_id === id || r.photo_id === id) || !!errs[id];
   }
 
   // ---------- refresh (pull down or reopen the app) ----------
@@ -1663,7 +1686,7 @@
         await sendPhoto();
         toast(live() ? "Sent. The estimate is ready in about a minute" : "Demo: estimating…");
         S.photo = null; S.meal = null; go("food");
-      } catch (err) { toast(err.message === "Write what you ate" ? err.message : `Couldn't send it: ${err.message}`); t.disabled = false; t.textContent = "Estimate with AI"; }
+      } catch (err) { toast(err.message === "Write what you ate" ? err.message : `Couldn't send it (${err.message}). Try again: it won't be logged twice.`, 5000); t.disabled = false; t.textContent = "Estimate with AI"; }
     }
     if (a === "dismiss-pending") { S.pending = S.pending.filter((p) => p.id !== t.dataset.id); savePending(); render(); }
     if (a === "edit-meal") {
